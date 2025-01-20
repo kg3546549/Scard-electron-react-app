@@ -19,7 +19,7 @@ client.on('error', (err)=> {
 
 client.on('data', (data)=> {
     console.log("Socket Data Received!");
-
+    console.log(data);
     const json = JSON.parse( data.toString('utf-8') );
     console.log(json);
 
@@ -77,6 +77,11 @@ ipcMain.on("channel", (event, cmd) => {
             else {
                 console.log("Socket is Already Connected!");
             }
+        break;
+
+        case Command.Cmd_Socket_Disconnect :
+
+
         break;
 
         case Command.Cmd_SCard_Establish_Context :
