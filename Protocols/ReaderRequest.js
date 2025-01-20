@@ -1,5 +1,9 @@
 const Command = {
   Cmd_Err: 0,
+
+  Cmd_Socket_Connect : 11,
+  Cmd_Socket_Disconnect : 12,
+  
   Cmd_SCard_Establish_Context: 101,
   Cmd_SCard_Reader_List: 102,
   Cmd_SCard_Connect_Card: 103,

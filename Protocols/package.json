@@ -1,0 +1,6 @@
+{
+    "name": "@scard/protocols",
+    "version": "1.0.0",
+    "main": "ReaderRequest.js",
+    "types": "ReaderRequest.d.ts"
+  }

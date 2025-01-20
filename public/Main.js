@@ -2,14 +2,35 @@ const {app, BrowserWindow, ipcMain} = require('electron');
 const path = require('path');
 const url = require('url');
 const net = require('net');
-const {Command, Sender, Result} = require('./Protocols/ReaderRequest.js');
+const {Command, Sender, Result} = require('@scard/protocols/ReaderRequest');
+
+const client = new net.Socket();
+let clientStatus = false
+
+client.on('close', () => {
+    console.log("socket Closed");
+    clientStatus = false;
+});
+
+client.on('error', (err)=> {
+    console.log("socket Error Occured");
+    clientStatus = false;
+})
+
+client.on('data', (data)=> {
+    console.log("Socket Data Received!");
+
+    const json = JSON.parse( data.toString('utf-8') );
+    console.log(json);
+
+})
 
 function createWindow() {
     /*
     * 넓이 1920에 높이 1080의 FHD 풀스크린 앱을 실행시킵니다.
     * */
     const win = new BrowserWindow({
-        width:800,
+        width:600,
         height:600,
         webPreferences : {
             nodeIntegration: true,
@@ -37,25 +58,45 @@ function createWindow() {
 
 app.on('ready', createWindow);
 
-ipcMain.on("channel", (event, data) => {
-    console.log(":: From Renderer Process ::", data);
+ipcMain.on("channel", (event, cmd) => {
+    console.log(":: From Renderer Process ::", cmd);
     // event.sender.send("channel", "From Main Process"+data);
     
-    //TODO : Command 구조 정리하기
-    if(data == "Cmd_SCard_Establish_Context") {
-        let requestCmd = {
-            "cmd": Command.Cmd_SCard_Establish_Context,
-            "sender": Sender.Request,
-            "msgCnt": 1,
-            "result": Result.Success,
-            "dataLength": 5,
-            "data": ["Test1", "Test2", "Test3", "Test4", "Test5"]
-        }
 
-        let requestJson = JSON.stringify(requestCmd);
-        const client = new net.Socket();
-        client.connect(12345,'127.0.0.1', ()=>{
+    console.log("clientStatus : " + clientStatus);
+    switch(cmd) {
+        
+        case Command.Cmd_Socket_Connect :
+
+            if( clientStatus == false ) {
+                client.connect(12345,'127.0.0.1', ()=>{
+                    console.log("Socket Connection Success")
+                    clientStatus = true;
+                });
+            }
+            else {
+                console.log("Socket is Already Connected!");
+            }
+        break;
+
+        case Command.Cmd_SCard_Establish_Context :
+            if( clientStatus == false ) {
+                console.log("Socket is not connect");
+                break;
+            }
+
+            let requestCmd = {
+                "cmd": Command.Cmd_SCard_Establish_Context,
+                "sender": Sender.Request,
+                "msgCnt": 1,
+                "result": Result.Success,
+                "dataLength": 5,
+                "data": ["Test1", "Test2", "Test3", "Test4", "Test5"]
+            }
+
+            let requestJson = JSON.stringify(requestCmd);
+            
             client.write(requestJson);
-        });
+        break;
     }
 });

@@ -1,21 +1,20 @@
 import React, {useState, useEffect} from 'react';
-import { io } from "socket.io-client";
+
 
 import './App.css';
 
 import { ChakraProvider } from '@chakra-ui/react'
 import { Button, ButtonGroup } from '@chakra-ui/react'
-import { Winscard_EstablishedContext, Winscard } from './Protocols/winscard';
-
-const { ipcRenderer } = window.require("electron");
+import {Command, Sender, Result} from "@scard/protocols/ReaderRequest"
+ 
 
 function EstablishContext() {
   console.log("Test");
 }
 
 function App() {
-  const [message, setMessage] = useState("");
   const { ipcRenderer } = window.require("electron");
+  const [message, setMessage] = useState("");
   const [socket,setSocket] = useState(null);
 
   useEffect(() => {
@@ -25,8 +24,16 @@ function App() {
     });
   }, [ipcRenderer]);
 
-  function SocketConnect() {
-    ipcRenderer.send("channel", "Cmd_SCard_Establish_Context");
+  function Cmd_SCard_Reader_List() {
+
+  }
+
+  function Cmd_SCard_Establish_Context() {
+    ipcRenderer.send("channel", Command.Cmd_SCard_Establish_Context);
+  }
+
+  function SendCommandToIPC(cmd:number) {
+    ipcRenderer.send("channel", cmd);
   }
 
   return (
@@ -34,8 +41,16 @@ function App() {
       <div className="App">
         {message}
         <header className="App-header">
-          <Button onClick={SocketConnect} colorScheme='blue'>
+          <Button onClick={()=>{SendCommandToIPC(Command.Cmd_Socket_Connect)}} colorScheme='blue'>
+            Socket Connect
+          </Button>
+
+          <Button onClick={()=>{SendCommandToIPC(Command.Cmd_SCard_Establish_Context)}} colorScheme='blue'>
             EstablishContext
+          </Button>
+
+          <Button onClick={Cmd_SCard_Reader_List} colorScheme='blue'>
+            ReaderList
           </Button>
         </header>
       </div>
