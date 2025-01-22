@@ -20,61 +20,21 @@ import {
 
 import {Command, Sender, Result} from "@scard/protocols/ReaderRequest"
  
-
 import Sidebar from './Views/Sidebar';
+
+interface ProtocolData {
+  cmd: number;
+  sender: number;
+  msgCnt: number;
+  result: number;
+  dataLength: number;
+  data: string[];
+}
 
 function EstablishContext() {
   console.log("Test");
 }
 
-type ReadBlockProps = {
-  idx:number;
-  data:string[];
-  ipc:(data:string[])=>void;
-}
-
-function ReadBlockComponent({idx, data, ipc}:ReadBlockProps) {
-
-  return (
-    <GridItem>
-      <Box m={2}>
-        
-        <Card variant={"filled"}>
-          <CardHeader>
-            <Heading size={"md"}>{idx} Block</Heading>
-          </CardHeader>
-          <CardBody p={0}>
-            <Card mr={2} ml={2}>
-              <Text fontSize='xs'>
-                {data[0]}
-              </Text>
-              <Text fontSize='xs'>
-                {data[1]}
-              </Text>
-              <Text fontSize='xs'>
-                {data[2]}
-              </Text>
-              <Text fontSize='xs'>
-                {data[3]}
-              </Text>
-            </Card>
-          </CardBody>
-          <CardFooter alignSelf={'center'}>
-            <Button 
-              colorScheme='green' 
-              size={'sm'} 
-              onClick={()=>{
-                ipc(["ReadBlockBtn",""+idx])
-              }}
-            >
-              읽기
-            </Button>
-          </CardFooter>
-        </Card>
-      </Box>
-    </GridItem>
-  );
-}
 
 
 function App() {
@@ -94,9 +54,32 @@ function App() {
 
   useEffect(() => {
     // IPC 이벤트 리스너 등록
-    ipcRenderer.on("channel", (event: any, data: JSON) => {
+    ipcRenderer.on("channel", (event: any, data: ProtocolData) => {
       setMessage(message+JSON.stringify(data)); // 받은 메시지를 상태로 설정
       
+      
+      console.log("ipc Channel Received");
+
+      switch(data.cmd) {
+
+        case Command.Cmd_MI_Read_Block : {
+          let dataBlock = [...blocks];
+          let blockNum = parseInt(data.data[0]);
+
+          let sector = Math.trunc(blockNum/4);
+          let listIdx = blockNum-(sector*4)
+
+          dataBlock[sector][listIdx] = data.data[1];
+
+          console.log(dataBlock[sector]);
+
+          setBlocks(dataBlock);
+        }
+
+
+      }
+
+
       
 
       console.log(data);
@@ -283,4 +266,56 @@ function App() {
   );
 }
 
+type ReadBlockProps = {
+  idx:number;
+  data:string[];
+  ipc:(data:string[])=>void;
+}
+
+function ReadBlockComponent({idx, data, ipc}:ReadBlockProps) {
+
+  return (
+    <GridItem>
+      <Box m={2}>
+        
+        <Card variant={"filled"}>
+          <CardHeader>
+            <Heading size={"md"}>Sector {idx}</Heading>
+          </CardHeader>
+          <CardBody p={0}>
+            <Card mr={2} ml={2}>
+              <Text fontSize='xs'>
+                {data[0]}
+              </Text>
+              <Text fontSize='xs'>
+                {data[1]}
+              </Text>
+              <Text fontSize='xs'>
+                {data[2]}
+              </Text>
+              <Text fontSize='xs'>
+                {data[3]}
+              </Text>
+            </Card>
+          </CardBody>
+          <CardFooter alignSelf={'center'}>
+            <Button 
+              colorScheme='green' 
+              size={'sm'} 
+              onClick={()=>{
+                console.log(idx);
+                ipc(["ReadBlockBtn",""+idx])
+              }}
+            >
+              읽기
+            </Button>
+          </CardFooter>
+        </Card>
+      </Box>
+    </GridItem>
+  );
+}
+
+
 export default App;
+

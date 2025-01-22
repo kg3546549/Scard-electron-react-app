@@ -128,7 +128,6 @@ function ReaderControl(cmd, data, client) {
             }
 
             let requestJson = JSON.stringify(requestCmd);
-            
             client.write(requestJson);
         }
         break;
@@ -144,7 +143,7 @@ function ReaderControl(cmd, data, client) {
                 "msgCnt": 1,
                 "result": Result.Default_Fail,
                 "dataLength": 0,
-                "data": ['0', 'A']
+                "data": data
             }
 
             let requestJson = JSON.stringify(requestCmd);
@@ -165,7 +164,7 @@ function ReaderControl(cmd, data, client) {
                 "msgCnt": 1,
                 "result": Result.Default_Fail,
                 "dataLength": 0,
-                "data": data[0]
+                "data": data
             }
 
             let requestJson = JSON.stringify(requestCmd);
@@ -187,14 +186,23 @@ ipcMain.on("channel", (event, cmd) => {
     ReaderControl(cmd,[],client);
 });
 
+function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
 
-ipcMain.on("action", (event, cmd) => {
+ipcMain.on("action", async (event, cmd) => {
     switch(cmd[0]) {
         case "ReadBlockBtn" : {
             let sector = parseInt(cmd[1]);
+            console.log("read block : ");
+            console.log("Authentication sector : " + `${0+(sector*4)}`);
+            ReaderControl( Command.Cmd_MI_Authentication, [`${0+(sector*4)}`, 'A'], client );
+            await delay(5);
 
             for(let i=0;i<4;i++) {
-                ReaderControl( Command.Cmd_MI_Read_Block, (sector*4)+i, client );
+                console.log([`${i+(sector*4)}`]);
+                ReaderControl( Command.Cmd_MI_Read_Block, [`${i+(sector*4)}`], client );
+                await delay(5);
             }
 
         }
