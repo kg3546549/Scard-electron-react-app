@@ -1,4 +1,4 @@
-import React, { ReactNode } from 'react'
+import React, { ReactNode, useState } from 'react'
 import {
   IconButton,
   Box,
@@ -12,6 +12,7 @@ import {
   useDisclosure,
   BoxProps,
   FlexProps,
+  Link,
 } from '@chakra-ui/react'
 
 import {
@@ -22,26 +23,85 @@ import {
   FiSettings,
   FiMenu,
 } from 'react-icons/fi'
+
+import { 
+  IoIdCardOutline 
+
+} from "react-icons/io5";
+import { FaMagnifyingGlassArrowRight } from "react-icons/fa6";
+import { FaSimCard } from "react-icons/fa";
+
 import { IconType } from 'react-icons'
 import { ReactText } from 'react'
+import { FastReading } from './Pages/FastReading';
+import { FullReading } from './Pages/FullReading';
+import { ISO7816 } from './Pages/ISO7816';
+import { Settings } from './Pages/Settings';
+import { Route, Routes, useNavigate } from 'react-router-dom';
 
 interface LinkItemProps {
   name: string
-  icon: IconType
+  icon: IconType,
+  onClick: (idx:number)=>void,
+  page : (()=>JSX.Element)
 }
-const LinkItems: Array<LinkItemProps> = [
-  { name: 'Home', icon: FiHome },
-  { name: 'Trending', icon: FiTrendingUp },
-  { name: 'Explore', icon: FiCompass },
-  { name: 'Favourites', icon: FiStar },
-  { name: 'Settings', icon: FiSettings },
-]
+
+
+
+
+// const Pages: (()=>JSX.Element)[] = [
+//   FastReading,
+//   FullReading,
+//   ISO7816,
+//   Settings
+// ]
 
 export default function Sidebar() {
   const { isOpen, onOpen, onClose } = useDisclosure()
+  const [curPage, setCurPage] = useState(0);
+  const navigate = useNavigate();
+
+  const LinkItems: Array<LinkItemProps> = [
+    { 
+      name: 'Fast Reading', 
+      icon: FaMagnifyingGlassArrowRight,
+      onClick : (idx)=> {
+        // setCurPage(idx);
+        navigate("/FastReading")
+      },
+      page : FastReading
+    },
+    { 
+      name: 'Full Reading', 
+      icon: IoIdCardOutline, 
+      onClick:(idx)=>{
+        // setCurPage(idx);
+        navigate("/FullReading")
+      },
+      page : FullReading
+    },
+    { 
+      name: 'ISO7816', 
+      icon: FaSimCard, 
+      onClick:(idx)=>{
+        // setCurPage(idx);
+        navigate("/ISO7816")
+      },
+      page : ISO7816
+    },
+    { 
+      name: 'Settings', icon: FiSettings,
+      onClick:(idx)=>{
+        // setCurPage(idx);
+        navigate("/Settings")
+      },
+      page : Settings
+    },
+  ]
+  
   return (
-    <Box minH="100vh" bg={useColorModeValue('gray.100', 'gray.900')}>
-      <SidebarContent onClose={() => onClose} display={{ base: 'none', md: 'block' }} />
+    <Box minH="500vh" bg={useColorModeValue('gray.100', 'gray.900')}>
+      <SidebarContent onClose={() => onClose} LinkItems={LinkItems} display={{ base: 'none', md: 'block' }} />
       <Drawer
         isOpen={isOpen}
         placement="left"
@@ -50,13 +110,22 @@ export default function Sidebar() {
         onOverlayClick={onClose}
         size="full">
         <DrawerContent>
-          <SidebarContent onClose={onClose} />
+          <SidebarContent onClose={onClose} LinkItems={LinkItems} />
         </DrawerContent>
       </Drawer>
       {/* mobilenav */}
       <MobileNav display={{ base: 'flex', md: 'none' }} onOpen={onOpen} />
       <Box ml={{ base: 0, md: 60 }} p="4">
         {/* Content */}
+        
+        
+        <Routes>
+          <Route path='/' element={<FastReading/>}/>
+          <Route path='/FastReading' element={<FastReading/>}/>
+          <Route path='/FullReading' element={<FullReading/>}/>
+          <Route path='/ISO7816' element={<ISO7816/>}/>
+          <Route path='/Settings' element={<Settings/>}/>
+        </Routes>
       </Box>
     </Box>
   )
@@ -64,9 +133,11 @@ export default function Sidebar() {
 
 interface SidebarProps extends BoxProps {
   onClose: () => void
+  LinkItems: LinkItemProps[]
 }
 
-const SidebarContent = ({ onClose, ...rest }: SidebarProps) => {
+const SidebarContent = ({ onClose,LinkItems, ...rest }: SidebarProps) => {
+  const navitator = useNavigate()
   return (
     <Box
       bg={useColorModeValue('white', 'gray.900')}
@@ -77,13 +148,23 @@ const SidebarContent = ({ onClose, ...rest }: SidebarProps) => {
       h="full"
       {...rest}>
       <Flex h="20" alignItems="center" mx="8" justifyContent="space-between">
+        {/* <IoIdCardOutline /> */}
         <Text fontSize="2xl" fontFamily="monospace" fontWeight="bold">
-          Logo
+          CARD Tools
         </Text>
         <CloseButton display={{ base: 'flex', md: 'none' }} onClick={onClose} />
       </Flex>
-      {LinkItems.map((link) => (
-        <NavItem key={link.name} icon={link.icon}>
+      {LinkItems.map((link,idx) => (
+        <NavItem 
+          key={link.name} 
+          icon={link.icon} 
+          onClick={
+            ()=>{
+              link.onClick(idx);
+              onClose();
+            }
+          }
+        >
           {link.name}
         </NavItem>
       ))}
