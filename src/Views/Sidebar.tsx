@@ -100,7 +100,7 @@ export default function Sidebar() {
   ]
   
   return (
-    <Box minH="500vh" bg={useColorModeValue('gray.100', 'gray.900')}>
+    <Box minH="100vh" bg={useColorModeValue('gray.100', 'gray.900')}>
       <SidebarContent onClose={() => onClose} LinkItems={LinkItems} display={{ base: 'none', md: 'block' }} />
       <Drawer
         isOpen={isOpen}
