@@ -36,7 +36,7 @@ import { ReactText } from 'react'
 import { FastReading } from './Pages/FastReading';
 import { FullReading } from './Pages/FullReading';
 import { ISO7816 } from './Pages/ISO7816';
-import { Settings } from './Pages/Settings';
+import { Settings } from './Pages/Settings/Settings';
 import { Route, Routes, useNavigate } from 'react-router-dom';
 
 interface LinkItemProps {

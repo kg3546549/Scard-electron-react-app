@@ -1,10 +1,11 @@
 import React, { ReactNode } from 'react'
 
 
-export const Settings = () => {
+
+export const General = () => {
     return (
         <>
-        Settings
+            General Setting
         </>
     );
 }
