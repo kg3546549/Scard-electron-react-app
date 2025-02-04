@@ -13,12 +13,38 @@ import {
     Stack,
     Badge
 } from '@chakra-ui/react'
+import { ReaderCtrl } from '../../../Utils/WinscardUtils';
 
 export const FunctionTest = () => {
     return (
         <>
-                <Heading size={'md'} mb={5}>Reader Connect</Heading>
+        <Heading size={'md'} mb={5}>Reader Connect</Heading>
         <SimpleGrid columns={3} spacing={4}>
+
+            {/* Socket Connect */}
+                <Card>
+                <CardHeader>
+                    <Stack direction={'row'}>
+                        <Heading size={'sm'}> Socket Connect </Heading>
+                        <Badge colorScheme='green'>Success</Badge>
+                    </Stack>
+                </CardHeader>
+                <CardBody mt={-5} mb={-5}>
+                    <Text>Result</Text>
+                    
+                    <Textarea readOnly>
+                    </Textarea>
+                </CardBody>
+                <CardFooter alignSelf={"end"}>
+                    <Button 
+                        colorScheme='blue' 
+                        onClick={
+                            ()=>{
+                                ReaderCtrl().SocketConnect();
+                            }
+                        }> Run </Button>
+                </CardFooter>
+            </Card>
 
             {/* Establish Context */}
             <Card>
@@ -35,7 +61,14 @@ export const FunctionTest = () => {
                     </Textarea>
                 </CardBody>
                 <CardFooter alignSelf={"end"}>
-                    <Button colorScheme='blue'> Run </Button>
+                    <Button 
+                        colorScheme='blue' 
+                        onClick={
+                            ()=>{
+                                console.log("EstablishContext");
+                                ReaderCtrl().EstablishContext()
+                            }
+                        }> Run </Button>
                 </CardFooter>
             </Card>
 

@@ -175,6 +175,7 @@ function ReaderControl(cmd, data, client) {
     }
 }
 
+//channel에는 cmd:number타입 하나만 받아서 이렇게 해놓은 듯....
 ipcMain.on("channel", (event, cmd) => {
     console.log(":: From Renderer Process ::", cmd);
     // event.sender.send("channel", "From Main Process"+data);
