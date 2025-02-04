@@ -35,7 +35,7 @@ client.on('data', (data)=> {
 
 function createWindow() {
     /*
-    * 넓이 1920에 높이 1080의 FHD 풀스크린 앱을 실행시킵니다.
+    * 넓이 600 높이 600 FHD 풀스크린 앱을 실행시킵니다.
     * */
     mainWindow = new BrowserWindow({
         width:600,
@@ -43,7 +43,8 @@ function createWindow() {
         webPreferences : {
             nodeIntegration: true,
             contextIsolation: false,
-        }
+        },
+        autoHideMenuBar: true,
     });
 
     /*
@@ -71,20 +72,34 @@ app.on('ready', createWindow);
 
 
 
-function ReaderControl(cmd, data, client) {
+function ReaderControl(cmd,uuid,data) {
     switch(cmd) {
         
-        case Command.Cmd_Socket_Connect :
+        case Command.Cmd_Socket_Connect :{
+            const json = {
+                cmd: Command.Cmd_Socket_Connect,
+                sender: Sender.Response,
+                msgCnt: 1,
+                uuid: uuid,
+                result: Result.Default_Fail,
+                dataLength: 0,
+                data: [],
+            }
 
             if( clientStatus == false ) {
                 client.connect(12345,'127.0.0.1', ()=>{
                     console.log("Socket Connection Success")
                     clientStatus = true;
                 });
+                json.result = Result.Success;
             }
             else {
                 console.log("Socket is Already Connected!");
+                json.result = Result.Default_Fail;
             }
+
+            mainWindow.webContents.send('channel', json);
+        }
         break;
 
         case Command.Cmd_Socket_Disconnect :
@@ -102,6 +117,7 @@ function ReaderControl(cmd, data, client) {
                 "cmd": cmd,
                 "sender": Sender.Request,
                 "msgCnt": 1,
+                "uuid" : uuid,
                 "result": Result.Default_Fail,
                 "dataLength": 0,
                 "data": []
@@ -122,6 +138,7 @@ function ReaderControl(cmd, data, client) {
                 "cmd": cmd,
                 "sender": Sender.Request,
                 "msgCnt": 1,
+                "uuid" : uuid,
                 "result": Result.Default_Fail,
                 "dataLength": 0,
                 "data": ['A', 'FFFFFFFFFFFF']
@@ -141,6 +158,7 @@ function ReaderControl(cmd, data, client) {
                 "cmd": cmd,
                 "sender": Sender.Request,
                 "msgCnt": 1,
+                "uuid" : uuid,
                 "result": Result.Default_Fail,
                 "dataLength": 0,
                 "data": data
@@ -162,6 +180,7 @@ function ReaderControl(cmd, data, client) {
                 "cmd": cmd,
                 "sender": Sender.Request,
                 "msgCnt": 1,
+                "uuid" : uuid,
                 "result": Result.Default_Fail,
                 "dataLength": 0,
                 "data": data
@@ -176,15 +195,22 @@ function ReaderControl(cmd, data, client) {
 }
 
 //channel에는 cmd:number타입 하나만 받아서 이렇게 해놓은 듯....
+/*
+cmd = {
+    cmd:Command
+    uuid:string
+}
+*/
 ipcMain.on("channel", (event, cmd) => {
     console.log(":: From Renderer Process ::", cmd);
     // event.sender.send("channel", "From Main Process"+data);
     
+    
 
     console.log("clientStatus : " + clientStatus);
-    console.log(`cmd : ${cmd}`);
+    console.log("cmd : ",cmd);
 
-    ReaderControl(cmd,[],client);
+    ReaderControl(cmd.cmd, cmd.uuid,[]);
 });
 
 function delay(ms) {

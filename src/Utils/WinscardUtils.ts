@@ -1,14 +1,16 @@
 import { Command } from "@scard/protocols/ReaderRequest";
 
-export function ReaderCtrl() {
+export function ReaderCtrl(uuid:string) {
   const { ipcRenderer } = window.require("electron");
 
-  console.log("[ipcRenderer]");
-  console.log(ipcRenderer);
+  console.log(":: Send Main Processor ::");
 
   return {
     SocketConnect: () => {
-      ipcRenderer.send("channel", Command.Cmd_Socket_Connect);
+      ipcRenderer.send("channel", {
+        cmd:Command.Cmd_Socket_Connect, 
+        uuid:uuid
+      });
     },
 
     EstablishContext: () => {

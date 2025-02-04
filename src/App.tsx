@@ -18,20 +18,13 @@ import {
   Text, Input
 } from '@chakra-ui/react'
 
-import {Command, Sender, Result} from "@scard/protocols/ReaderRequest"
+import {Command, Sender, Result, ProtocolData} from "@scard/protocols/ReaderRequest"
  
 import Sidebar from './Views/Sidebar';
 import {MainView} from './Views/MainView';
 import { BrowserRouter } from 'react-router-dom';
 
-interface ProtocolData {
-  cmd: number;
-  sender: number;
-  msgCnt: number;
-  result: number;
-  dataLength: number;
-  data: string[];
-}
+
 
 function EstablishContext() {
   console.log("Test");
@@ -56,28 +49,28 @@ function App() {
 
   useEffect(() => {
     // IPC 이벤트 리스너 등록
-    ipcRenderer.on("channel", (event: any, data: ProtocolData) => {
-      setMessage(message+JSON.stringify(data)); // 받은 메시지를 상태로 설정
+    // ipcRenderer.on("channel", (event: any, data: ProtocolData) => {
+    //   setMessage(message+JSON.stringify(data)); // 받은 메시지를 상태로 설정
       
-      console.log("ipc Channel Received");
+    //   console.log("ipc Channel Received");
 
-      switch(data.cmd) {
-        case Command.Cmd_MI_Read_Block : {
-          let dataBlock = [...blocks];
-          let blockNum = parseInt(data.data[0]);
+    //   switch(data.cmd) {
+    //     case Command.Cmd_MI_Read_Block : {
+    //       let dataBlock = [...blocks];
+    //       let blockNum = parseInt(data.data[0]);
 
-          let sector = Math.trunc(blockNum/4);
-          let listIdx = blockNum-(sector*4)
+    //       let sector = Math.trunc(blockNum/4);
+    //       let listIdx = blockNum-(sector*4)
 
-          dataBlock[sector][listIdx] = data.data[1];
+    //       dataBlock[sector][listIdx] = data.data[1];
 
-          console.log(dataBlock[sector]);
+    //       console.log(dataBlock[sector]);
 
-          setBlocks(dataBlock);
-        }
-      }
-      console.log(data);
-    });
+    //       setBlocks(dataBlock);
+    //     }
+    //   }
+    //   console.log(data);
+    // });
 
     ipcRenderer.on("action", (event: any, data: Object) => {
       console.log(data);

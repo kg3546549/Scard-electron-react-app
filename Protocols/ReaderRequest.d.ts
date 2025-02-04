@@ -31,4 +31,14 @@ declare module '@scard/protocols/ReaderRequest' {
       Success: number;
       Default_Fail: number;
     };
+
+    export interface ProtocolData {
+      cmd: number;
+      sender: number;
+      msgCnt: number;
+      uuid:string;
+      result: number;
+      dataLength: number;
+      data: string[];
+    }
   }

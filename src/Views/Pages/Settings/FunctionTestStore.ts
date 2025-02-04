@@ -1,3 +1,4 @@
+import { ProtocolData } from '@scard/protocols/ReaderRequest';
 import { create } from 'zustand';
 
 interface RequestState {
@@ -5,8 +6,8 @@ interface RequestState {
     responses: Record<string, any>;
     pendingRequests: Set<string>;
     addPendingRequest: (id: string) => void;
-    receiveResponse: (id: string, response: any) => void;
-  }
+    receiveResponse: (id: string, response: ProtocolData) => void;
+}
   
 export const useRequestStore = create<RequestState>((set) => ({
     responses: {},

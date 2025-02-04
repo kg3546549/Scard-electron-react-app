@@ -7,6 +7,8 @@ import {
 
 export const FullReading = () => {
     return (
+        <>
+        <Heading>Full Reading</Heading>
         <Tabs>
             <TabList>
             <Tab>Reader Select</Tab>
@@ -27,5 +29,6 @@ export const FullReading = () => {
             </TabPanel>
             </TabPanels>
         </Tabs>
+        </>
     );
 }

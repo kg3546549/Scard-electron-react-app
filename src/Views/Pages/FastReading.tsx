@@ -24,6 +24,7 @@ const CardTagTab = () => {
 
   return (
     <>
+      
       <Stack align={'center'} justify={'center'} >
         <HStack>
           <Heading size={'sm'}>리더 선택 : </Heading>
@@ -61,6 +62,7 @@ export const FastReading = () => {
 
   return (
     <>
+    <Heading>Fast Reading</Heading>
     <Tabs>
       <TabList>
         <Tab>Reader Select</Tab>

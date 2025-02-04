@@ -1,4 +1,4 @@
-import { Tabs, TabList, Tab, TabPanels, TabPanel } from "@chakra-ui/react";
+import { Tabs, TabList, Tab, TabPanels, TabPanel, Heading } from "@chakra-ui/react";
 import React, { ReactNode } from "react";
 import { General } from "./GeneralSetting";
 import { FunctionTest } from "./FunctionTestVIew";
@@ -6,6 +6,7 @@ import { FunctionTest } from "./FunctionTestVIew";
 export const Settings = () => {
   return (
     <>
+    <Heading>SETTINGS</Heading>
       <Tabs>
         <TabList>
           <Tab>General</Tab>
