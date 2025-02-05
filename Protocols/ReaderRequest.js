@@ -31,4 +31,14 @@ const Result = {
   Default_Fail : 99
 }
 
+const ProtocolJSONtoString = (json) => {
+  let str = "";
+  switch(json.cmd) {
+    case Command.Cmd_Socket_Connect : {
+      
+    }
+    break;
+  }
+}
+
 module.exports = {Command, Sender, Result};

@@ -9,7 +9,13 @@ export function ReaderCtrl(uuid:string) {
     SocketConnect: () => {
       ipcRenderer.send("channel", {
         cmd:Command.Cmd_Socket_Connect, 
-        uuid:uuid
+        uuid:uuid,
+      });
+    },
+    SocektDisconnect: ()=> {
+      ipcRenderer.send("channel", {
+        cmd:Command.Cmd_Socket_Disconnect, 
+        uuid:uuid,
       });
     },
 

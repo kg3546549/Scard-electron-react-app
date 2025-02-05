@@ -28,8 +28,11 @@ declare module '@scard/protocols/ReaderRequest' {
     };
   
     export const Result: {
-      Success: number;
-      Default_Fail: number;
+      Success: number = 0;
+
+      Socket_AlreadyConnected:number = 11;
+
+      Default_Fail: number = 99;
     };
 
     export interface ProtocolData {
@@ -37,7 +40,7 @@ declare module '@scard/protocols/ReaderRequest' {
       sender: number;
       msgCnt: number;
       uuid:string;
-      result: number;
+      result: Result;
       dataLength: number;
       data: string[];
     }

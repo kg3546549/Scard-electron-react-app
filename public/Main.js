@@ -73,36 +73,64 @@ app.on('ready', createWindow);
 
 
 function ReaderControl(cmd,uuid,data) {
+    let responseData = {
+        cmd: cmd,
+        sender: Sender.Response,
+        msgCnt: 1,
+        uuid: uuid,
+        result: Result.Default_Fail,
+        dataLength: 0,
+        data: [],
+    }
+
     switch(cmd) {
         
         case Command.Cmd_Socket_Connect :{
-            const json = {
-                cmd: Command.Cmd_Socket_Connect,
-                sender: Sender.Response,
-                msgCnt: 1,
-                uuid: uuid,
-                result: Result.Default_Fail,
-                dataLength: 0,
-                data: [],
-            }
-
             if( clientStatus == false ) {
                 client.connect(12345,'127.0.0.1', ()=>{
                     console.log("Socket Connection Success")
                     clientStatus = true;
+                    responseData.data.push("Socket Connection Success");
+                    responseData.result = Result.Success;
+
+                    console.log(responseData);
+                    mainWindow.webContents.send('channel', responseData);
                 });
-                json.result = Result.Success;
             }
             else {
-                console.log("Socket is Already Connected!");
-                json.result = Result.Default_Fail;
+                console.log("Socket is Already Connected");
+                responseData.result = Result.Default_Fail;
+                responseData.data.push("Socket is Already Connected");
+
+                console.log(responseData);
+                mainWindow.webContents.send('channel', responseData);
             }
 
-            mainWindow.webContents.send('channel', json);
+            
         }
         break;
 
-        case Command.Cmd_Socket_Disconnect :
+        case Command.Cmd_Socket_Disconnect : {
+            if( clientStatus == true ) {
+                client.destroy();
+                clientStatus = false;
+                console.log("Socket Close Success");
+
+                responseData.data.push("Socket Close Success");
+                responseData.result = Result.Success;
+            }
+            else {
+                console.log("Socket is not Connected");
+
+                responseData.result = Result.Default_Fail;
+                responseData.data.push("Socket is not Connected");
+            }
+            console.log(responseData);
+            mainWindow.webContents.send('channel', responseData);
+        }
+        break;
+
+
         case Command.Cmd_SCard_Establish_Context : 
         case Command.Cmd_SCard_Reader_List : 
         case Command.Cmd_SCard_Connect_Card : 
@@ -204,9 +232,6 @@ cmd = {
 ipcMain.on("channel", (event, cmd) => {
     console.log(":: From Renderer Process ::", cmd);
     // event.sender.send("channel", "From Main Process"+data);
-    
-    
-
     console.log("clientStatus : " + clientStatus);
     console.log("cmd : ",cmd);
 
@@ -237,3 +262,11 @@ ipcMain.on("action", async (event, cmd) => {
 
     }
 })
+
+
+
+ipcMain.on("requestChannel", async (event, requestData) => {
+
+
+
+});

@@ -5,47 +5,33 @@ import './App.css';
 import { 
   ChakraProvider, 
   Button, 
-  ButtonGroup, 
   Box, 
-  Accordion,
-  AccordionItem,
-  AccordionButton,
-  AccordionPanel,
-  AccordionIcon,
-  Textarea,
   Card, CardHeader, CardBody, CardFooter,
-  Heading, Grid, GridItem, SimpleGrid, InputGroup, InputRightAddon,Center,
-  Text, Input
+  Heading, GridItem,
+  Text
 } from '@chakra-ui/react'
 
-import {Command, Sender, Result, ProtocolData} from "@scard/protocols/ReaderRequest"
+// import {Command, Sender, Result, ProtocolData} from "@scard/protocols/ReaderRequest"
  
 import Sidebar from './Views/Sidebar';
-import {MainView} from './Views/MainView';
+// import {MainView} from './Views/MainView';
 import { BrowserRouter } from 'react-router-dom';
-
-
-
-function EstablishContext() {
-  console.log("Test");
-}
-
 
 
 function App() {
   const { ipcRenderer } = window.require("electron");
   const [message, setMessage] = useState("");
-  const [socket,setSocket] = useState(null);
+ 
 
 
-  const [blocks, setBlocks] = useState(
-    [
-      ["","","",""],["","","",""],["","","",""],["","","",""],
-      ["","","",""],["","","",""],["","","",""],["","","",""],
-      ["","","",""],["","","",""],["","","",""],["","","",""],
-      ["","","",""],["","","",""],["","","",""],["","","",""],
-    ]
-  );
+  // const [blocks, setBlocks] = useState(
+  //   [
+  //     ["","","",""],["","","",""],["","","",""],["","","",""],
+  //     ["","","",""],["","","",""],["","","",""],["","","",""],
+  //     ["","","",""],["","","",""],["","","",""],["","","",""],
+  //     ["","","",""],["","","",""],["","","",""],["","","",""],
+  //   ]
+  // );
 
   useEffect(() => {
     // IPC 이벤트 리스너 등록

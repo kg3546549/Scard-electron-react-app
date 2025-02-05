@@ -12,25 +12,20 @@ import {
   Textarea,
   Stack,
   Badge,
+  ButtonGroup,
 } from "@chakra-ui/react";
 import { ReaderCtrl } from "../../../Utils/WinscardUtils";
-import { useRequestStore } from './FunctionTestStore';
+import { useRequestStore, Status, ComponentData } from './FunctionTestStore';
 import { v4 as uuidv4 } from 'uuid';
-import { ProtocolData } from "@scard/protocols/ReaderRequest";
+import { ProtocolData, Result } from "@scard/protocols/ReaderRequest";
 
-type Status =  "ready" | "processing" | "Success" | "Fail";
 
-type RequestItem = {
-  uuid: string | null;
-  data: any; // `null` 외에도 다른 데이터를 저장할 가능성이 있다면 `any` 또는 명확한 타입을 지정
-  status: Status;
-};
-
-type RequestId = {
-  SocketConnect: RequestItem;
-  EstablishContext: RequestItem;
-  ReaderList: RequestItem;
-  ConnectCard: RequestItem;
+type UUIDTYPE = string | null;
+type ComponentUUID = {
+  SocketConnect: UUIDTYPE;
+  EstablishContext: UUIDTYPE;
+  ReaderList: UUIDTYPE;
+  ConnectCard: UUIDTYPE;
 };
 
 
@@ -46,47 +41,45 @@ export const FunctionTest = () => {
   const { ipcRenderer } = window.require("electron");
 
   const responses = useRequestStore((state) => state.responses);
-  const [requestId, setRequestId] = useState<RequestId>({
-    SocketConnect : {
-      "uuid" : null,
-      "data" : null,
-      "status" : "ready"
-    },
-    EstablishContext : {
-      "uuid" : null,
-      "data" : null,
-      "status" : "ready"
-    },
-    ReaderList : {
-      "uuid" : null,
-      "data" : null,
-      "status" : "ready"
-    },
-    ConnectCard : {
-      "uuid" : null,
-      "data" : null,
-      "status" : "ready"
-    },
+  const [componentUUID, setComponentUUID] = useState<ComponentUUID>({
+    SocketConnect : null,
+    EstablishContext :null,
+    ReaderList : null,
+    ConnectCard : null
   });
 
   
 
   useEffect(()=>{
     ipcRenderer.on("channel", (event:any, responseData:ProtocolData)=>{
-      console.log(":: Process Complete !! ::")
-      console.log(responseData);
-      console.log("\n\n");
+      //responseData를 받으면
+      //responseData의 UUID에 맞는 데이터를 집어넣음.
+      //데이터를 집어넣을 떄 데이터를 파싱해서 집어넣으면
+      //그걸 참조하는 곳에서는 uuid로 참조해서 바인딩하고있으니
+      //파싱된 데이터가 출력되도록 함
+      //그럼 애초에 파싱된 데이터를 집어넣어야 하고.
+      //receiveResponse 에는 파싱된 데이터를 집어넣어놔야함.
 
-      console.log(":: Store UUID Set ::")
-      useRequestStore.getState().receiveResponse(responseData.uuid, responseData);
-      console.log("Store");
-      console.log(responses);
+      let responseStatus:Status = "ready";
+      switch(responseData.result) {
+        case Result.Success : responseStatus="Success"; break;
+        default : responseStatus="Fail";break;
+      }
+
+      const componentData:ComponentData = {
+        data : responseData.data,
+        status : responseStatus,
+        uuid : responseData.uuid
+      }
+
+      useRequestStore.getState().receiveResponse(responseData.uuid, componentData);
+      
     })
   });
 
-  useEffect(() => {
-    console.log("Responses updated:", responses);
-  }, [responses]);
+  // useEffect(() => {
+  //   console.log("Responses updated:", responses);
+  // }, [responses]);
 
   return (
     <>
@@ -100,53 +93,65 @@ export const FunctionTest = () => {
             <Stack direction={"row"}>
               <Heading size={"sm"}> Socket Connect </Heading>
               <Badge 
-                colorScheme={badgeColor.get(requestId.SocketConnect.status)}
+                colorScheme={
+                  componentUUID.SocketConnect && responses[componentUUID.SocketConnect!]?
+                  badgeColor.get(responses[componentUUID.SocketConnect!].status) : "gray"
+                }
               >
-                {requestId.SocketConnect.status}
+                {componentUUID.SocketConnect && responses[componentUUID.SocketConnect!]?responses[componentUUID.SocketConnect!].status:"Ready"}
               </Badge>
             </Stack>
           </CardHeader>
           <CardBody mt={-5} mb={-5}>
             <Text>Result</Text>
 
-            <Textarea readOnly>
-            {
-              requestId.SocketConnect.uuid &&
-              JSON.stringify(responses[requestId.SocketConnect.uuid], null, 2)
-            }
-            </Textarea>
+            <Textarea 
+              readOnly 
+              value={
+                componentUUID.SocketConnect && responses[componentUUID.SocketConnect!]?
+                JSON.stringify(responses[componentUUID.SocketConnect!], null, 2):""
+              }
+            />
+            
           </CardBody>
           <CardFooter alignSelf={"end"}>
-            <Button onClick={
-              ()=>{
-                console.log(":: Responses ::");
-                console.log(responses);
-                console.log(responses[requestId.SocketConnect.uuid!]);
-              }
-            }>
-              Clear
-            </Button>
+            {/* Check Comment.md */}
+            <ButtonGroup>
             <Button
               colorScheme="blue"
               onClick={() => {                
                 const newUUID = uuidv4();
-                console.log(`:: Button Click ${newUUID}::`);
 
                 ReaderCtrl(newUUID).SocketConnect();
                 //store에 uuid를 등록
                 useRequestStore.getState().addPendingRequest(newUUID);
-                setRequestId( 
-                  {
-                    ...requestId, 
-                    SocketConnect : {
-                      ...requestId.SocketConnect,
-                      uuid:newUUID
-                    }
-                  });
+
+                setComponentUUID({
+                  ...componentUUID, 
+                  SocketConnect : newUUID
+                });
               }}
             >
-              Run
+              Connect
             </Button>
+            <Button
+              
+              onClick={() => {                
+                const newUUID = uuidv4();
+
+                ReaderCtrl(newUUID).SocektDisconnect();
+                //store에 uuid를 등록
+                useRequestStore.getState().addPendingRequest(newUUID);
+
+                setComponentUUID({
+                  ...componentUUID, 
+                  SocketConnect : newUUID
+                });
+              }}
+            >
+              Disconnect
+            </Button>
+            </ButtonGroup>
           </CardFooter>
         </Card>
 
