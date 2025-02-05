@@ -1,8 +1,11 @@
 import React, { ReactNode } from 'react'
 
 import {
-  Card, Flex, Heading, Text, VStack, HStack, Spacer, Box, Button,
-  Tabs, TabList, TabPanels, Tab, TabPanel, Stack, Select
+  Heading, 
+  Tabs, TabList, TabPanels, Tab, TabPanel, 
+//   Card, Flex, 
+//   Text, VStack, HStack, Spacer, Box, Button,
+//   Stack, Select
 } from '@chakra-ui/react'
 
 export const FullReading = () => {

@@ -1,4 +1,6 @@
 const {app, BrowserWindow, ipcMain} = require('electron');
+
+
 const path = require('path');
 const url = require('url');
 const net = require('net');
@@ -6,6 +8,9 @@ const {Command, Sender, Result} = require('@scard/protocols/ReaderRequest');
 
 const client = new net.Socket();
 let clientStatus = false
+
+
+
 
 let mainWindow;
 
@@ -38,8 +43,8 @@ function createWindow() {
     * 넓이 600 높이 600 FHD 풀스크린 앱을 실행시킵니다.
     * */
     mainWindow = new BrowserWindow({
-        width:600,
-        height:600,
+        width:1500,
+        height:1000,
         webPreferences : {
             nodeIntegration: true,
             contextIsolation: false,
@@ -61,6 +66,7 @@ function createWindow() {
     /*
     * startUrl에 배정되는 url을 맨 위에서 생성한 BrowserWindow에서 실행시킵니다.
     * */
+
     mainWindow.loadURL(startUrl);
 
     
@@ -68,8 +74,6 @@ function createWindow() {
 }
 
 app.on('ready', createWindow);
-
-
 
 
 function ReaderControl(cmd,uuid,data) {
@@ -265,8 +269,92 @@ ipcMain.on("action", async (event, cmd) => {
 
 
 
+/**
+ * @description IPC Listener to Renderer Process
+ * @param requestData : ProtocolData
+ */
 ipcMain.on("requestChannel", async (event, requestData) => {
 
+    console.log(":: IPC request Channel ::");
+    console.log(requestData);
 
+    let responseData = {
+        cmd: requestData.cmd,
+        sender: Sender.Response,
+        msgCnt: 1,
+        uuid: requestData.uuid,
+        result: Result.Default_Fail,
+        dataLength: 0,
+        data: [],
+    }
+
+    switch(requestData.cmd) {
+        case Command.Cmd_Socket_Connect :{
+            if( clientStatus == false ) {
+                client.connect(12345,'127.0.0.1', ()=>{
+                    console.log("Socket Connection Success")
+                    clientStatus = true;
+                    responseData.data.push("Socket Connection Success");
+                    responseData.result = Result.Success;
+
+                    console.log(responseData);
+                    mainWindow.webContents.send('channel', responseData);
+                });
+            }
+            else {
+                console.log("Socket is Already Connected");
+                responseData.result = Result.Default_Fail;
+                responseData.data.push("Socket is Already Connected");
+
+                console.log(responseData);
+                mainWindow.webContents.send('channel', responseData);
+            }
+
+            
+        }
+        break;
+
+        case Command.Cmd_Socket_Disconnect : {
+            if( clientStatus == true ) {
+                client.destroy();
+                clientStatus = false;
+                console.log("Socket Close Success");
+
+                responseData.data.push("Socket Close Success");
+                responseData.result = Result.Success;
+            }
+            else {
+                console.log("Socket is not Connected");
+
+                responseData.result = Result.Default_Fail;
+                responseData.data.push("Socket is not Connected");
+            }
+            console.log(responseData);
+            mainWindow.webContents.send('channel', responseData);
+        }
+        break;
+
+
+
+        case Command.Cmd_SCard_Establish_Context :
+        case Command.Cmd_SCard_Reader_List :
+        case Command.Cmd_SCard_Connect_Card :
+        case Command.Cmd_Scard_Release_Context :
+        case Command.Cmd_SCard_Transmit :
+        case Command.Cmd_MI_Get_UID :
+        default :
+        {
+            if(clientStatus == false) {
+                responseData.data.push("Socket is not connected");
+                mainWindow.webContents.send('channel', responseData);
+                return;
+            }
+            console.log("  - request to background process");
+            requestJSON = JSON.stringify(requestData)
+            client.write(requestJSON);
+        }
+        break;
+    }
+    
 
 });

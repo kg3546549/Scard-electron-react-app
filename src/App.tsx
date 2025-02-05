@@ -245,12 +245,12 @@ function App() {
   // );
 }
 
+
 type ReadBlockProps = {
   idx:number;
   data:string[];
   ipc:(data:string[])=>void;
 }
-
 function ReadBlockComponent({idx, data, ipc}:ReadBlockProps) {
 
   return (

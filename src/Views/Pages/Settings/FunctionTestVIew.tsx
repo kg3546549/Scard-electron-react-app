@@ -13,20 +13,19 @@ import {
   Stack,
   Badge,
   ButtonGroup,
+  Input,
+  InputGroup,
+  InputLeftAddon,
+  RadioGroup,
+  Radio,
 } from "@chakra-ui/react";
-import { ReaderCtrl } from "../../../Utils/WinscardUtils";
-import { useRequestStore, Status, ComponentData } from './FunctionTestStore';
+import { ReaderControl } from "../../../Utils/WinscardUtils";
+import { useRequestStore } from './FunctionTestStore';
 import { v4 as uuidv4 } from 'uuid';
-import { ProtocolData, Result } from "@scard/protocols/ReaderRequest";
+import { Command, ProtocolData, Result } from "@scard/protocols/ReaderRequest";
 
 
-type UUIDTYPE = string | null;
-type ComponentUUID = {
-  SocketConnect: UUIDTYPE;
-  EstablishContext: UUIDTYPE;
-  ReaderList: UUIDTYPE;
-  ConnectCard: UUIDTYPE;
-};
+
 
 
 
@@ -45,10 +44,17 @@ export const FunctionTest = () => {
     SocketConnect : null,
     EstablishContext :null,
     ReaderList : null,
-    ConnectCard : null
+    ConnectCard : null,
+    GetUID: null,
+    LoadKey: null,
+    Authentication: null,
+    ReadBlock: null,
+    WriteBlock: null,
+    HALT: null,
   });
 
-  
+  const [loadkeyInput, setLoadkeyInput] = useState("FFFFFFFFFFFF");
+  const [loadkeyType, setLoadkeyType] = useState("A");
 
   useEffect(()=>{
     ipcRenderer.on("channel", (event:any, responseData:ProtocolData)=>{
@@ -59,6 +65,9 @@ export const FunctionTest = () => {
       //파싱된 데이터가 출력되도록 함
       //그럼 애초에 파싱된 데이터를 집어넣어야 하고.
       //receiveResponse 에는 파싱된 데이터를 집어넣어놔야함.
+
+      console.log(" :: IPC Renderer Listener ::")
+      console.log(responseData);
 
       let responseStatus:Status = "ready";
       switch(responseData.result) {
@@ -71,6 +80,8 @@ export const FunctionTest = () => {
         status : responseStatus,
         uuid : responseData.uuid
       }
+
+      console.log(componentData);
 
       useRequestStore.getState().receiveResponse(responseData.uuid, componentData);
       
@@ -102,14 +113,14 @@ export const FunctionTest = () => {
               </Badge>
             </Stack>
           </CardHeader>
-          <CardBody mt={-5} mb={-5}>
+          <CardBody mt={-5} mb={-5} alignContent={"space-around"}>
             <Text>Result</Text>
 
             <Textarea 
               readOnly 
               value={
                 componentUUID.SocketConnect && responses[componentUUID.SocketConnect!]?
-                JSON.stringify(responses[componentUUID.SocketConnect!], null, 2):""
+                responses[componentUUID.SocketConnect!].data:""
               }
             />
             
@@ -122,10 +133,13 @@ export const FunctionTest = () => {
               onClick={() => {                
                 const newUUID = uuidv4();
 
-                ReaderCtrl(newUUID).SocketConnect();
+                // ReaderCtrl(newUUID).SocketConnect();
+                //Main Process에 리더 조작 요청
+                ReaderControl(Command.Cmd_Socket_Connect,newUUID, []);
                 //store에 uuid를 등록
                 useRequestStore.getState().addPendingRequest(newUUID);
-
+                
+                //데이터바인딩 용 UUID state 세팅
                 setComponentUUID({
                   ...componentUUID, 
                   SocketConnect : newUUID
@@ -139,7 +153,7 @@ export const FunctionTest = () => {
               onClick={() => {                
                 const newUUID = uuidv4();
 
-                ReaderCtrl(newUUID).SocektDisconnect();
+                ReaderControl(Command.Cmd_Socket_Disconnect,newUUID, []);
                 //store에 uuid를 등록
                 useRequestStore.getState().addPendingRequest(newUUID);
 
@@ -155,30 +169,81 @@ export const FunctionTest = () => {
           </CardFooter>
         </Card>
 
+        
+
+
         {/* Establish Context */}
         <Card>
           <CardHeader>
             <Stack direction={"row"}>
               <Heading size={"sm"}> Establish Context </Heading>
-              <Badge colorScheme="green">Success</Badge>
+              <Badge 
+                colorScheme={
+                  componentUUID.EstablishContext && responses[componentUUID.EstablishContext!]?
+                  badgeColor.get(responses[componentUUID.EstablishContext!].status) : "gray"
+                }
+              >
+                {
+                componentUUID.EstablishContext && responses[componentUUID.EstablishContext!]?
+                responses[componentUUID.EstablishContext!].status:"Ready"
+                }
+              </Badge>
             </Stack>
           </CardHeader>
-          <CardBody mt={-5} mb={-5}>
+          <CardBody mt={-5} mb={-5} alignContent={"space-around"}>
             <Text>Result</Text>
 
-            <Textarea readOnly></Textarea>
+            <Textarea 
+              readOnly 
+              value={
+                componentUUID.EstablishContext && responses[componentUUID.EstablishContext!]?
+                responses[componentUUID.EstablishContext!].data:""
+              }
+            />
+            
           </CardBody>
           <CardFooter alignSelf={"end"}>
+            {/* Check Comment.md */}
+            <ButtonGroup>
             <Button
               colorScheme="blue"
-              onClick={() => {
+              onClick={() => {                
                 const newUUID = uuidv4();
 
-                ReaderCtrl(newUUID).EstablishContext();
+                // ReaderCtrl(newUUID).SocketConnect();
+                //Main Process에 리더 조작 요청
+                ReaderControl(Command.Cmd_SCard_Establish_Context,newUUID, []);
+                //store에 uuid를 등록
+                useRequestStore.getState().addPendingRequest(newUUID);
+                
+                //데이터바인딩 용 UUID state 세팅
+                setComponentUUID({
+                  ...componentUUID, 
+                  EstablishContext : newUUID
+                });
               }}
             >
-              Run
+              Establish
             </Button>
+            {/* TODO : Release Context Button */}
+            <Button
+              
+              onClick={() => {                
+                const newUUID = uuidv4();
+
+                ReaderControl(Command.Cmd_Scard_Release_Context,newUUID, []);
+                //store에 uuid를 등록
+                useRequestStore.getState().addPendingRequest(newUUID);
+
+                setComponentUUID({
+                  ...componentUUID, 
+                  SocketConnect : newUUID
+                });
+              }}
+            >
+              Release
+            </Button>
+            </ButtonGroup>
           </CardFooter>
         </Card>
 
@@ -187,16 +252,55 @@ export const FunctionTest = () => {
           <CardHeader>
             <Stack direction={"row"}>
               <Heading size={"sm"}> Reader List </Heading>
-              <Badge colorScheme="green">Success</Badge>
+              <Badge 
+                colorScheme={
+                  componentUUID.ReaderList && responses[componentUUID.ReaderList!]?
+                  badgeColor.get(responses[componentUUID.ReaderList!].status) : "gray"
+                }
+              >
+                {
+                componentUUID.ReaderList && responses[componentUUID.ReaderList!]?
+                responses[componentUUID.ReaderList!].status:"Ready"
+                }
+              </Badge>
             </Stack>
           </CardHeader>
-          <CardBody mt={-5} mb={-5}>
+          <CardBody mt={-5} mb={-5} alignContent={"space-around"}>
             <Text>Result</Text>
 
-            <Textarea readOnly></Textarea>
+            <Textarea 
+              readOnly 
+              value={
+                componentUUID.ReaderList && responses[componentUUID.ReaderList!]?
+                responses[componentUUID.ReaderList!].data:""
+              }
+            />
+            
           </CardBody>
           <CardFooter alignSelf={"end"}>
-            <Button colorScheme="blue"> Run </Button>
+            {/* Check Comment.md */}
+            <ButtonGroup>
+            <Button
+              colorScheme="blue"
+              onClick={() => {                
+                const newUUID = uuidv4();
+
+                // ReaderCtrl(newUUID).SocketConnect();
+                //Main Process에 리더 조작 요청
+                ReaderControl(Command.Cmd_SCard_Reader_List,newUUID, []);
+                //store에 uuid를 등록
+                useRequestStore.getState().addPendingRequest(newUUID);
+                
+                //데이터바인딩 용 UUID state 세팅
+                setComponentUUID({
+                  ...componentUUID, 
+                  ReaderList : newUUID
+                });
+              }}
+            >
+              Run
+            </Button>
+            </ButtonGroup>
           </CardFooter>
         </Card>
 
@@ -205,61 +309,216 @@ export const FunctionTest = () => {
           <CardHeader>
             <Stack direction={"row"}>
               <Heading size={"sm"}> Connect Card </Heading>
-              <Badge colorScheme="green">Success</Badge>
+              <Badge 
+                colorScheme={
+                  componentUUID.ConnectCard && responses[componentUUID.ConnectCard!]?
+                  badgeColor.get(responses[componentUUID.ConnectCard!].status) : "gray"
+                }
+              >
+                {
+                componentUUID.ConnectCard && responses[componentUUID.ConnectCard!]?
+                responses[componentUUID.ConnectCard!].status:"Ready"
+                }
+              </Badge>
             </Stack>
           </CardHeader>
-          <CardBody mt={-5} mb={-5}>
+          <CardBody mt={-5} mb={-5} alignContent={"space-around"}>
             <Text>Result</Text>
 
-            <Textarea readOnly></Textarea>
+            <Textarea 
+              readOnly 
+              value={
+                componentUUID.ConnectCard && responses[componentUUID.ConnectCard!]?
+                responses[componentUUID.ConnectCard!].data:""
+              }
+            />
+            
           </CardBody>
           <CardFooter alignSelf={"end"}>
-            <Button colorScheme="blue"> Run </Button>
+            {/* Check Comment.md */}
+            <ButtonGroup>
+            <Button
+              colorScheme="blue"
+              onClick={() => {                
+                const newUUID = uuidv4();
+
+                // ReaderCtrl(newUUID).SocketConnect();
+                //Main Process에 리더 조작 요청
+                ReaderControl(Command.Cmd_SCard_Connect_Card,newUUID, []);
+                //store에 uuid를 등록
+                useRequestStore.getState().addPendingRequest(newUUID);
+                
+                //데이터바인딩 용 UUID state 세팅
+                setComponentUUID({
+                  ...componentUUID, 
+                  ConnectCard : newUUID
+                });
+              }}
+            >
+              Run
+            </Button>
+            </ButtonGroup>
           </CardFooter>
         </Card>
       </SimpleGrid>
 
       <Divider m={5} />
+      
 
+
+      {/* MIFARE Test Functions */}
       <Heading size={"md"} mb={5}>
         MIFARE
       </Heading>
       <SimpleGrid columns={3} spacing={4}>
+
         {/* Get UID */}
         <Card>
           <CardHeader>
             <Stack direction={"row"}>
               <Heading size={"sm"}> Get UID </Heading>
-              <Badge colorScheme="green">Success</Badge>
+              <Badge 
+                colorScheme={
+                  componentUUID.GetUID && responses[componentUUID.GetUID!]?
+                  badgeColor.get(responses[componentUUID.GetUID!].status) : "gray"
+                }
+              >
+                {
+                componentUUID.GetUID && responses[componentUUID.GetUID!]?
+                responses[componentUUID.GetUID!].status:"Ready"
+                }
+              </Badge>
             </Stack>
           </CardHeader>
-          <CardBody mt={-5} mb={-5}>
+          <CardBody mt={-5} mb={-5} alignContent={"space-around"}>
             <Text>Result</Text>
 
-            <Textarea readOnly></Textarea>
+            <Textarea 
+              readOnly 
+              value={
+                componentUUID.GetUID && responses[componentUUID.GetUID!]?
+                responses[componentUUID.GetUID!].data:""
+              }
+            />
+            
           </CardBody>
           <CardFooter alignSelf={"end"}>
-            <Button colorScheme="blue"> Run </Button>
+            {/* Check Comment.md */}
+            <ButtonGroup>
+            <Button
+              colorScheme="blue"
+              onClick={() => {                
+                const newUUID = uuidv4();
+
+                // ReaderCtrl(newUUID).SocketConnect();
+                //Main Process에 리더 조작 요청
+                ReaderControl(Command.Cmd_MI_Get_UID,newUUID, []);
+                //store에 uuid를 등록
+                useRequestStore.getState().addPendingRequest(newUUID);
+                
+                //데이터바인딩 용 UUID state 세팅
+                setComponentUUID({
+                  ...componentUUID, 
+                  GetUID : newUUID
+                });
+              }}
+            >
+              Run
+            </Button>
+            </ButtonGroup>
           </CardFooter>
         </Card>
+
 
         {/* Load Key */}
         <Card>
           <CardHeader>
             <Stack direction={"row"}>
               <Heading size={"sm"}> Load Key </Heading>
-              <Badge colorScheme="green">Success</Badge>
+              <Badge 
+                colorScheme={
+                  componentUUID.LoadKey && responses[componentUUID.LoadKey!]?
+                  badgeColor.get(responses[componentUUID.LoadKey!].status) : "gray"
+                }
+              >
+                {
+                componentUUID.LoadKey && responses[componentUUID.LoadKey!]?
+                responses[componentUUID.LoadKey!].status:"Ready"
+                }
+              </Badge>
             </Stack>
           </CardHeader>
-          <CardBody mt={-5} mb={-5}>
+          <CardBody mt={-5} mb={-5} alignContent={"space-around"}>
+            
+            <RadioGroup 
+              defaultValue="A" 
+              value={loadkeyType} 
+              mb={5}
+              onChange={(e)=>{
+                setLoadkeyType(e);
+              }}
+            >
+              <Stack spacing={5} direction='row'>
+                <Text>Key Type</Text>
+                <Radio colorScheme="blue" value="A">
+                  A
+                </Radio>
+                <Radio colorScheme="red" value="B">
+                  B
+                </Radio>
+              </Stack>
+            </RadioGroup>
+
+            <InputGroup mb={5}>
+            <InputLeftAddon>KEY</InputLeftAddon>
+            <Input
+              maxLength={12}
+              value={loadkeyInput}
+              onChange={ (e)=>{setLoadkeyInput(e.target.value)} }
+            ></Input>
+            </InputGroup>
+
             <Text>Result</Text>
 
-            <Textarea readOnly></Textarea>
+            <Textarea 
+              readOnly 
+              value={
+                componentUUID.LoadKey && responses[componentUUID.LoadKey!]?
+                responses[componentUUID.LoadKey!].data:""
+              }
+            />
+            
           </CardBody>
           <CardFooter alignSelf={"end"}>
-            <Button colorScheme="blue"> Run </Button>
+            {/* Check Comment.md */}
+            <ButtonGroup>
+            <Button
+              colorScheme="blue"
+              onClick={() => {        
+                
+                const newUUID = uuidv4();
+
+                // ReaderCtrl(newUUID).SocketConnect();
+                //Main Process에 리더 조작 요청
+                ReaderControl(Command.Cmd_MI_Load_Key,newUUID, [loadkeyType, loadkeyInput]);
+                //store에 uuid를 등록
+                useRequestStore.getState().addPendingRequest(newUUID);
+                
+                //데이터바인딩 용 UUID state 세팅
+                setComponentUUID({
+                  ...componentUUID, 
+                  LoadKey : newUUID
+                });
+              }}
+            >
+              Load Key
+            </Button>
+            </ButtonGroup>
           </CardFooter>
         </Card>
+
+
+
 
         {/* Authentication */}
         <Card>
@@ -269,7 +528,7 @@ export const FunctionTest = () => {
               <Badge colorScheme="green">Success</Badge>
             </Stack>
           </CardHeader>
-          <CardBody mt={-5} mb={-5}>
+          <CardBody mt={-5} mb={-5} alignContent={"space-around"}>
             <Text>Result</Text>
 
             <Textarea readOnly></Textarea>
@@ -287,7 +546,7 @@ export const FunctionTest = () => {
               <Badge colorScheme="green">Success</Badge>
             </Stack>
           </CardHeader>
-          <CardBody mt={-5} mb={-5}>
+          <CardBody mt={-5} mb={-5} alignContent={"space-around"}>
             <Text>Result</Text>
 
             <Textarea readOnly></Textarea>
@@ -305,7 +564,7 @@ export const FunctionTest = () => {
               <Badge colorScheme="green">Success</Badge>
             </Stack>
           </CardHeader>
-          <CardBody mt={-5} mb={-5}>
+          <CardBody mt={-5} mb={-5} alignContent={"space-around"}>
             <Text>Result</Text>
 
             <Textarea readOnly></Textarea>
@@ -323,7 +582,7 @@ export const FunctionTest = () => {
               <Badge colorScheme="green">Success</Badge>
             </Stack>
           </CardHeader>
-          <CardBody mt={-5} mb={-5}>
+          <CardBody mt={-5} mb={-5} alignContent={"space-around"}>
             <Text>Result</Text>
 
             <Textarea readOnly></Textarea>

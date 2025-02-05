@@ -1,4 +1,4 @@
-import React, { ReactNode, useState } from 'react'
+import React, { useState, ReactText } from 'react'
 import {
   IconButton,
   Box,
@@ -12,39 +12,28 @@ import {
   useDisclosure,
   BoxProps,
   FlexProps,
-  Link,
 } from '@chakra-ui/react'
 
 import {
-  FiHome,
-  FiTrendingUp,
-  FiCompass,
-  FiStar,
   FiSettings,
   FiMenu,
 } from 'react-icons/fi'
 
 import { 
   IoIdCardOutline 
-
 } from "react-icons/io5";
+
 import { FaMagnifyingGlassArrowRight } from "react-icons/fa6";
 import { FaSimCard } from "react-icons/fa";
 
 import { IconType } from 'react-icons'
-import { ReactText } from 'react'
 import { FastReading } from './Pages/FastReading';
 import { FullReading } from './Pages/FullReading';
 import { ISO7816 } from './Pages/ISO7816';
 import { Settings } from './Pages/Settings/Settings';
 import { Route, Routes, useNavigate } from 'react-router-dom';
 
-interface LinkItemProps {
-  name: string
-  icon: IconType,
-  onClick: (idx:number)=>void,
-  page : (()=>JSX.Element)
-}
+
 
 
 
@@ -55,6 +44,14 @@ interface LinkItemProps {
 //   ISO7816,
 //   Settings
 // ]
+
+
+interface LinkItemProps {
+  name: string
+  icon: IconType,
+  onClick: (idx:number)=>void,
+  page : (()=>JSX.Element)
+}
 
 export default function Sidebar() {
   const { isOpen, onOpen, onClose } = useDisclosure()
@@ -131,11 +128,11 @@ export default function Sidebar() {
   )
 }
 
+
 interface SidebarProps extends BoxProps {
   onClose: () => void
   LinkItems: LinkItemProps[]
 }
-
 const SidebarContent = ({ onClose,LinkItems, ...rest }: SidebarProps) => {
   const navitator = useNavigate()
   return (

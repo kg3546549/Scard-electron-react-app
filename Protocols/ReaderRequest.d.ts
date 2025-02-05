@@ -6,6 +6,7 @@ declare module '@scard/protocols/ReaderRequest' {
       Cmd_Socket_Disconnect: number = 12;
 
       Cmd_SCard_Establish_Context: number = 101;
+      Cmd_Scard_Release_Context:1001;
       Cmd_SCard_Reader_List: number = 102;
       Cmd_SCard_Connect_Card: number = 103;
       Cmd_SCard_Disconnect_Card: number = 104;
@@ -23,8 +24,8 @@ declare module '@scard/protocols/ReaderRequest' {
     };
   
     export const Sender: {
-      Request: number;
-      Response: number;
+      Request: number = 0;
+      Response: number = 1;
     };
   
     export const Result: {
@@ -40,7 +41,7 @@ declare module '@scard/protocols/ReaderRequest' {
       sender: number;
       msgCnt: number;
       uuid:string;
-      result: Result;
+      result: number;
       dataLength: number;
       data: string[];
     }
