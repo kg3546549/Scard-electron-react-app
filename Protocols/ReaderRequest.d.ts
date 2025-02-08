@@ -32,6 +32,7 @@ declare module '@scard/protocols/ReaderRequest' {
       Success: number = 0;
 
       Socket_AlreadyConnected:number = 11;
+      Socekt_Connection_Failed:number = 12;
 
       Default_Fail: number = 99;
     };

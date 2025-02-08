@@ -18,6 +18,7 @@ import {
   InputLeftAddon,
   RadioGroup,
   Radio,
+  Select,
 } from "@chakra-ui/react";
 import { ReaderControl } from "../../../Utils/WinscardUtils";
 import { useRequestStore } from './FunctionTestStore';
@@ -54,7 +55,14 @@ export const FunctionTest = () => {
   });
 
   const [loadkeyInput, setLoadkeyInput] = useState("FFFFFFFFFFFF");
-  const [loadkeyType, setLoadkeyType] = useState("A");
+  const [authKeyType, setAuthkeyType] = useState("A");
+  
+  const [curSector, setCurSector] = useState(0);
+  const sectors:number[] = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
+
+  const [blocks, setBlocks] = useState( [0,1,2,3] );
+  const [curBlock, setCurBlock] = useState(0);
+
 
   useEffect(()=>{
     ipcRenderer.on("channel", (event:any, responseData:ProtocolData)=>{
@@ -449,33 +457,14 @@ export const FunctionTest = () => {
             </Stack>
           </CardHeader>
           <CardBody mt={-5} mb={-5} alignContent={"space-around"}>
-            
-            <RadioGroup 
-              defaultValue="A" 
-              value={loadkeyType} 
-              mb={5}
-              onChange={(e)=>{
-                setLoadkeyType(e);
-              }}
-            >
-              <Stack spacing={5} direction='row'>
-                <Text>Key Type</Text>
-                <Radio colorScheme="blue" value="A">
-                  A
-                </Radio>
-                <Radio colorScheme="red" value="B">
-                  B
-                </Radio>
-              </Stack>
-            </RadioGroup>
 
             <InputGroup mb={5}>
-            <InputLeftAddon>KEY</InputLeftAddon>
-            <Input
-              maxLength={12}
-              value={loadkeyInput}
-              onChange={ (e)=>{setLoadkeyInput(e.target.value)} }
-            ></Input>
+              <InputLeftAddon>KEY</InputLeftAddon>
+              <Input
+                maxLength={12}
+                value={loadkeyInput}
+                onChange={ (e)=>{setLoadkeyInput(e.target.value)} }
+              ></Input>
             </InputGroup>
 
             <Text>Result</Text>
@@ -500,7 +489,7 @@ export const FunctionTest = () => {
 
                 // ReaderCtrl(newUUID).SocketConnect();
                 //Main Process에 리더 조작 요청
-                ReaderControl(Command.Cmd_MI_Load_Key,newUUID, [loadkeyType, loadkeyInput]);
+                ReaderControl(Command.Cmd_MI_Load_Key,newUUID, [loadkeyInput]);
                 //store에 uuid를 등록
                 useRequestStore.getState().addPendingRequest(newUUID);
                 
@@ -519,42 +508,193 @@ export const FunctionTest = () => {
 
 
 
-
         {/* Authentication */}
         <Card>
           <CardHeader>
             <Stack direction={"row"}>
               <Heading size={"sm"}> Authentication </Heading>
-              <Badge colorScheme="green">Success</Badge>
+              <Badge 
+                colorScheme={
+                  componentUUID.Authentication && responses[componentUUID.Authentication!]?
+                  badgeColor.get(responses[componentUUID.Authentication!].status) : "gray"
+                }
+              >
+                {
+                componentUUID.Authentication && responses[componentUUID.Authentication!]?
+                responses[componentUUID.Authentication!].status:"Ready"
+                }
+              </Badge>
             </Stack>
           </CardHeader>
           <CardBody mt={-5} mb={-5} alignContent={"space-around"}>
+            
+            <RadioGroup 
+              defaultValue="A" 
+              value={authKeyType} 
+              mb={5}
+              onChange={(e)=>{
+                setAuthkeyType(e);
+              }}
+            >
+              <Stack spacing={5} direction='row'>
+                <Text>Key Type</Text>
+                <Radio colorScheme="blue" value="A">
+                  A
+                </Radio>
+                <Radio colorScheme="red" value="B">
+                  B
+                </Radio>
+              </Stack>
+            </RadioGroup>
+            
+            <InputGroup mb={3}>
+              <InputLeftAddon>Sector</InputLeftAddon>
+              <Select 
+                variant={'outline'} 
+                placeholder="Sector"
+                value={curSector}
+                onChange={(e)=>{ 
+                  let selSector = Number(e.target.value);
+                  setBlocks([
+                    (selSector*4),
+                    (selSector*4)+1,
+                    (selSector*4)+2,
+                    (selSector*4)+3
+                  ]);
+                  setCurSector( selSector );
+                }}
+              >
+              {
+                sectors.map( (data, index)  => (
+                  <option value={data}> {data} </option>
+                ))
+              }
+              </Select>
+            </InputGroup>
+            
             <Text>Result</Text>
 
-            <Textarea readOnly></Textarea>
+            <Textarea 
+              readOnly 
+              value={
+                componentUUID.Authentication && responses[componentUUID.Authentication!]?
+                responses[componentUUID.Authentication!].data:""
+              }
+            />
+            
           </CardBody>
           <CardFooter alignSelf={"end"}>
-            <Button colorScheme="blue"> Run </Button>
+            {/* Check Comment.md */}
+            <ButtonGroup>
+            <Button
+              colorScheme="blue"
+              onClick={() => {        
+                
+                const newUUID = uuidv4();
+
+                // ReaderCtrl(newUUID).SocketConnect();
+                //Main Process에 리더 조작 요청
+                ReaderControl(Command.Cmd_MI_Authentication,newUUID, [String(curSector*4), authKeyType]);
+                //store에 uuid를 등록
+                useRequestStore.getState().addPendingRequest(newUUID);
+                
+                //데이터바인딩 용 UUID state 세팅
+                setComponentUUID({
+                  ...componentUUID, 
+                  Authentication : newUUID
+                });
+              }}
+            >
+              Authentication
+            </Button>
+            </ButtonGroup>
           </CardFooter>
         </Card>
+            
+          
+        
 
-        {/* Read Block */}
-        <Card>
+         {/* Read Block */}
+         <Card>
           <CardHeader>
             <Stack direction={"row"}>
               <Heading size={"sm"}> Read Block </Heading>
-              <Badge colorScheme="green">Success</Badge>
+              <Badge 
+                colorScheme={
+                  componentUUID.ReadBlock && responses[componentUUID.ReadBlock!]?
+                  badgeColor.get(responses[componentUUID.ReadBlock!].status) : "gray"
+                }
+              >
+                {
+                componentUUID.ReadBlock && responses[componentUUID.ReadBlock!]?
+                responses[componentUUID.ReadBlock!].status:"Ready"
+                }
+              </Badge>
             </Stack>
           </CardHeader>
           <CardBody mt={-5} mb={-5} alignContent={"space-around"}>
-            <Text>Result</Text>
+                        
+            <InputGroup mb={3}>
+              <InputLeftAddon>Block</InputLeftAddon>
+              <Select 
+                variant={'outline'} 
+                placeholder="Block"
+                value={curBlock}
+                onChange={(e) => {
+                  setCurBlock( Number(e.target.value) );
+                }}
+              >
+                {
+                  blocks.map( (data, index)  => (
+                    <option value={data}> {data} </option>
+                  ))
+                }
+              </Select>
+            </InputGroup>
 
-            <Textarea readOnly></Textarea>
+            <Text>Result</Text>
+            {curBlock}
+
+            <Textarea 
+              readOnly 
+              value={
+                componentUUID.ReadBlock && responses[componentUUID.ReadBlock!]?
+                responses[componentUUID.ReadBlock!].data:""
+              }
+            />
+            
           </CardBody>
           <CardFooter alignSelf={"end"}>
-            <Button colorScheme="blue"> Run </Button>
+            {/* Check Comment.md */}
+            <ButtonGroup>
+            {/* Read Block 0섹터만 됌 */}
+            <Button
+              colorScheme="blue"
+              onClick={() => {        
+                
+                const newUUID = uuidv4();
+
+                // ReaderCtrl(newUUID).SocketConnect();
+                //Main Process에 리더 조작 요청
+                ReaderControl(Command.Cmd_MI_Read_Block,newUUID, [String(curBlock)]);
+                //store에 uuid를 등록
+                useRequestStore.getState().addPendingRequest(newUUID);
+                
+                //데이터바인딩 용 UUID state 세팅
+                setComponentUUID({
+                  ...componentUUID, 
+                  ReadBlock : newUUID
+                });
+              }}
+            >
+              Authentication
+            </Button>
+            </ButtonGroup>
           </CardFooter>
         </Card>
+
+
+
 
         {/* Write Block */}
         <Card>

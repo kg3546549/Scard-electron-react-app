@@ -20,8 +20,11 @@ client.on('close', () => {
 });
 
 client.on('error', (err)=> {
+
     console.log("socket Error Occured");
     clientStatus = false;
+
+    mainWindow.webContents.send('channel', responseData);
 })
 
 client.on('data', (data)=> {
