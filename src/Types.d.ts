@@ -5,6 +5,8 @@ type ComponentUUID = {
   EstablishContext: UUIDTYPE;
   ReaderList: UUIDTYPE;
   ConnectCard: UUIDTYPE;
+  Transmit:UUIDTYPE;
+  GetATR : UUIDTYPE;
   GetUID: UUIDTYPE;
   LoadKey: UUIDTYPE;
   Authentication: UUIDTYPE;

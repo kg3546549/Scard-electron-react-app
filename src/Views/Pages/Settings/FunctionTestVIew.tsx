@@ -45,7 +45,9 @@ export const FunctionTest = () => {
     EstablishContext :null,
     ReaderList : null,
     ConnectCard : null,
+    Transmit : null,
     GetUID: null,
+    GetATR: null,
     LoadKey: null,
     Authentication: null,
     ReadBlock: null,
@@ -55,6 +57,7 @@ export const FunctionTest = () => {
 
   const [loadkeyInput, setLoadkeyInput] = useState("FFFFFFFFFFFF");
   const [loadkeyType, setLoadkeyType] = useState("A");
+  const [transData, setTransData] = useState("");
 
   useEffect(()=>{
     ipcRenderer.on("channel", (event:any, responseData:ProtocolData)=>{
@@ -168,9 +171,6 @@ export const FunctionTest = () => {
             </ButtonGroup>
           </CardFooter>
         </Card>
-
-        
-
 
         {/* Establish Context */}
         <Card>
@@ -360,6 +360,132 @@ export const FunctionTest = () => {
             </ButtonGroup>
           </CardFooter>
         </Card>
+
+        {/* Get ATR */}
+        <Card>
+          <CardHeader>
+            <Stack direction={"row"}>
+              <Heading size={"sm"}> Get ATR </Heading>
+              <Badge 
+                colorScheme={
+                  componentUUID.GetATR && responses[componentUUID.GetATR!]?
+                  badgeColor.get(responses[componentUUID.GetATR!].status) : "gray"
+                }
+              >
+                {
+                componentUUID.GetATR && responses[componentUUID.GetATR!]?
+                responses[componentUUID.GetATR!].status:"Ready"
+                }
+              </Badge>
+            </Stack>
+          </CardHeader>
+          <CardBody mt={-5} mb={-5} alignContent={"space-around"}>
+            <Text>Result</Text>
+
+            <Textarea 
+              readOnly 
+              value={
+                componentUUID.GetATR && responses[componentUUID.GetATR!]?
+                responses[componentUUID.GetATR!].data:""
+              }
+            />
+            
+          </CardBody>
+          <CardFooter alignSelf={"end"}>
+            {/* Check Comment.md */}
+            <ButtonGroup>
+            <Button
+              colorScheme="blue"
+              onClick={() => {                
+                const newUUID = uuidv4();
+
+                // ReaderCtrl(newUUID).SocketConnect();
+                //Main Process에 리더 조작 요청
+                //TODO : Command로 바꾸기
+                ReaderControl(106,newUUID, []);
+                //store에 uuid를 등록
+                useRequestStore.getState().addPendingRequest(newUUID);
+                
+                //데이터바인딩 용 UUID state 세팅
+                //atr 예시 : 3B8F8001804F0CA000000306030001000000006A
+                setComponentUUID({
+                  ...componentUUID, 
+                  GetATR : newUUID
+                });
+              }}
+            >
+              Run
+            </Button>
+            </ButtonGroup>
+          </CardFooter>
+        </Card>
+
+        {/* Transmit */}
+        <Card>
+          <CardHeader>
+            <Stack direction={"row"}>
+              <Heading size={"sm"}> Transmit </Heading>
+              <Badge 
+                colorScheme={
+                  componentUUID.Transmit && responses[componentUUID.Transmit!]?
+                  badgeColor.get(responses[componentUUID.Transmit!].status) : "gray"
+                }
+              >
+                {
+                componentUUID.Transmit && responses[componentUUID.Transmit!]?
+                responses[componentUUID.Transmit!].status:"Ready"
+                }
+              </Badge>
+            </Stack>
+          </CardHeader>
+          <CardBody mt={-5} mb={-5} alignContent={"space-around"}>
+
+            <Text>Send Data</Text>
+
+            <Textarea 
+              value={transData}
+              onChange={(e)=>{
+                setTransData(e.target.value);
+              }}
+            />
+            <Text>Result</Text>
+
+            <Textarea 
+              readOnly 
+              value={
+                componentUUID.Transmit && responses[componentUUID.Transmit!]?
+                responses[componentUUID.Transmit!].data:""
+              }
+            />
+            
+          </CardBody>
+          <CardFooter alignSelf={"end"}>
+            {/* Check Comment.md */}
+            <ButtonGroup>
+            <Button
+              colorScheme="blue"
+              onClick={() => {                
+                const newUUID = uuidv4();
+
+                // ReaderCtrl(newUUID).SocketConnect();
+                //Main Process에 리더 조작 요청
+                ReaderControl(Command.Cmd_SCard_Transmit,newUUID, [transData]);
+                //store에 uuid를 등록
+                useRequestStore.getState().addPendingRequest(newUUID);
+                
+                //데이터바인딩 용 UUID state 세팅
+                setComponentUUID({
+                  ...componentUUID, 
+                  Transmit : newUUID
+                });
+              }}
+            >
+              Run
+            </Button>
+            </ButtonGroup>
+          </CardFooter>
+        </Card>
+
       </SimpleGrid>
 
       <Divider m={5} />
@@ -428,7 +554,6 @@ export const FunctionTest = () => {
             </ButtonGroup>
           </CardFooter>
         </Card>
-
 
         {/* Load Key */}
         <Card>
@@ -516,9 +641,6 @@ export const FunctionTest = () => {
             </ButtonGroup>
           </CardFooter>
         </Card>
-
-
-
 
         {/* Authentication */}
         <Card>

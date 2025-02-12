@@ -11,6 +11,7 @@ declare module '@scard/protocols/ReaderRequest' {
       Cmd_SCard_Connect_Card: number = 103;
       Cmd_SCard_Disconnect_Card: number = 104;
       Cmd_SCard_Transmit: number = 105;
+      Cmd_SCard_GetATR:number = 106;
       
       Cmd_MI_Get_UID: number = 201;
       Cmd_MI_Load_Key: number = 202;
