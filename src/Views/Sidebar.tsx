@@ -1,4 +1,5 @@
-import React, { useState, ReactText } from 'react'
+import React, { useState, ReactText, useEffect } from 'react'
+import { Command, ProtocolData, Result, Sender } from "@scard/protocols/ReaderRequest";
 import {
   IconButton,
   Box,
@@ -12,6 +13,7 @@ import {
   useDisclosure,
   BoxProps,
   FlexProps,
+  Switch
 } from '@chakra-ui/react'
 
 import {
@@ -134,7 +136,10 @@ interface SidebarProps extends BoxProps {
   LinkItems: LinkItemProps[]
 }
 const SidebarContent = ({ onClose,LinkItems, ...rest }: SidebarProps) => {
-  const navitator = useNavigate()
+
+  // const [pcsc_exe, setPcsc_exe] = useState(false);
+
+  // const navitator = useNavigate()
   return (
     <Box
       bg={useColorModeValue('white', 'gray.900')}
@@ -146,9 +151,17 @@ const SidebarContent = ({ onClose,LinkItems, ...rest }: SidebarProps) => {
       {...rest}>
       <Flex h="20" alignItems="center" mx="8" justifyContent="space-between">
         {/* <IoIdCardOutline /> */}
-        <Text fontSize="2xl" fontFamily="monospace" fontWeight="bold">
+        <Text fontSize="2xl" fontFamily="monospace" fontWeight="extrabold">
           CARD Tools
         </Text>
+        {/* <Switch 
+          isChecked={pcsc_exe}
+          onChange={()=>{
+            console.log(pcsc_exe);
+            setPcsc_exe(!pcsc_exe)
+          }}
+        />  */}
+        
         <CloseButton display={{ base: 'flex', md: 'none' }} onClick={onClose} />
       </Flex>
       {LinkItems.map((link,idx) => (

@@ -15,7 +15,7 @@ type ComponentUUID = {
   HALT: UUIDTYPE;
 };
 
-type Status =  "ready" | "processing" | "Success" | "Fail";
+type Status =  "ready" | "processing" | "success" | "fail";
 
 type ComponentData = {
     data : string[];

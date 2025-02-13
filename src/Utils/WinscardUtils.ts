@@ -38,7 +38,7 @@ import { Command, ProtocolData, Result, Sender } from "@scard/protocols/ReaderRe
 // }
 
 export function ReaderControl(cmd:number, uuid:string, data:string[]) {
-  const { ipcRenderer } = window.require("electron");
+  // const { ipcRenderer } = window.require("electron");
   const channel = "requestChannel";
 
   console.log(":: Send Main Processor ::");
@@ -65,5 +65,5 @@ export function ReaderControl(cmd:number, uuid:string, data:string[]) {
     break;
   }
 
-  ipcRenderer.send(channel,requestData);
+  window.electron.ipcRenderer.send(channel,requestData);
 }

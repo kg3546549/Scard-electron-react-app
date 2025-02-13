@@ -2,6 +2,7 @@ declare module '@scard/protocols/ReaderRequest' {
     export const Command: {
       Cmd_Err: number = 0;
 
+      Cmd_Socket_Execute: number = 10;
       Cmd_Socket_Connect: number = 11;
       Cmd_Socket_Disconnect: number = 12;
 
