@@ -38,7 +38,7 @@ export const FunctionTest = () => {
     ["Fail", "red"],
   ]);
 
-  const { ipcRenderer } = window.require("electron");
+  // const { ipcRenderer } = window.require("electron");
 
   const responses = useRequestStore((state) => state.responses);
   const [componentUUID, setComponentUUID] = useState<ComponentUUID>({
@@ -69,35 +69,35 @@ export const FunctionTest = () => {
 
 
   useEffect(()=>{
-    ipcRenderer.on("channel", (event:any, responseData:ProtocolData)=>{
-      //responseData를 받으면
-      //responseData의 UUID에 맞는 데이터를 집어넣음.
-      //데이터를 집어넣을 떄 데이터를 파싱해서 집어넣으면
-      //그걸 참조하는 곳에서는 uuid로 참조해서 바인딩하고있으니
-      //파싱된 데이터가 출력되도록 함
-      //그럼 애초에 파싱된 데이터를 집어넣어야 하고.
-      //receiveResponse 에는 파싱된 데이터를 집어넣어놔야함.
+    // ipcRenderer.on("channel", (event:any, responseData:ProtocolData)=>{
+    //   //responseData를 받으면
+    //   //responseData의 UUID에 맞는 데이터를 집어넣음.
+    //   //데이터를 집어넣을 떄 데이터를 파싱해서 집어넣으면
+    //   //그걸 참조하는 곳에서는 uuid로 참조해서 바인딩하고있으니
+    //   //파싱된 데이터가 출력되도록 함
+    //   //그럼 애초에 파싱된 데이터를 집어넣어야 하고.
+    //   //receiveResponse 에는 파싱된 데이터를 집어넣어놔야함.
 
-      console.log(" :: IPC Renderer Listener ::")
-      console.log(responseData);
+    //   console.log(" :: IPC Renderer Listener ::")
+    //   console.log(responseData);
 
-      let responseStatus:Status = "ready";
-      switch(responseData.result) {
-        case Result.Success : responseStatus="Success"; break;
-        default : responseStatus="Fail";break;
-      }
+    //   let responseStatus:Status = "ready";
+    //   switch(responseData.result) {
+    //     case Result.Success : responseStatus="Success"; break;
+    //     default : responseStatus="Fail";break;
+    //   }
 
-      const componentData:ComponentData = {
-        data : responseData.data,
-        status : responseStatus,
-        uuid : responseData.uuid
-      }
+    //   const componentData:ComponentData = {
+    //     data : responseData.data,
+    //     status : responseStatus,
+    //     uuid : responseData.uuid
+    //   }
 
-      console.log(componentData);
+    //   console.log(componentData);
 
-      useRequestStore.getState().receiveResponse(responseData.uuid, componentData);
+    //   useRequestStore.getState().receiveResponse(responseData.uuid, componentData);
       
-    })
+    // })
   });
 
   // useEffect(() => {

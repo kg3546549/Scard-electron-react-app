@@ -41,16 +41,21 @@ client.on('data', (data)=> {
 
 })
 
+console.log("__dirname : " + path.join(__dirname, "../src/preload.js"));
+
 function createWindow() {
     /*
     * 넓이 600 높이 600 FHD 풀스크린 앱을 실행시킵니다.
     * */
     mainWindow = new BrowserWindow({
-        width:1500,
-        height:1000,
+        width:1300,
+        height:800,
         webPreferences : {
-            nodeIntegration: true,
-            contextIsolation: false,
+            preload: path.join(__dirname, "../src/preload.js"),
+            // nodeIntegration: true,
+            // contextIsolation: false,
+            
+            
         },
         autoHideMenuBar: true,
     });
@@ -360,4 +365,11 @@ ipcMain.on("requestChannel", async (event, requestData) => {
     }
     
 
+});
+
+
+
+ipcMain.handle("reader", async (e) => {
+    console.log(":: ipcMain - reader ::");
+    return "TEST!!"+e;
 });

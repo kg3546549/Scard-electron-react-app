@@ -3,6 +3,8 @@ import React, { ReactNode } from "react";
 import { General } from "./GeneralSetting";
 import { FunctionTest } from "./FunctionTestVIew";
 
+import { FunctionTestV2 } from "./FunctionTestV2";
+
 export const Settings = () => {
   return (
     <>
@@ -11,6 +13,7 @@ export const Settings = () => {
         <TabList>
           <Tab>General</Tab>
           <Tab>Function Test</Tab>
+          <Tab>Function Test V2</Tab>
         </TabList>
         <TabPanels>
           <TabPanel>
@@ -18,6 +21,9 @@ export const Settings = () => {
           </TabPanel>
           <TabPanel>
             <FunctionTest />
+          </TabPanel>
+          <TabPanel>
+            <FunctionTestV2/>
           </TabPanel>
         </TabPanels>
       </Tabs>
