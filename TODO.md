@@ -1,17 +1,22 @@
 # TODOs
 
-## Server Card Driver 관련
+## `NOT YET` Server Card Driver 관련
   - Driver에서 6300이던 9000이던간에 신경쓰지말고 Return하기
   - SCard_Success이기만 하면 나머지는 프론트에서 처리하도록 하는것이 좋을 듯.
 
-## Client Card Driver 관련
+## `NOT YET` Client Card Driver 관련
   - 모든 카드관련 기능들 함수로 만들기. (250203)
   - ipc를 통한 컨트롤은 함수에서 하고, 함수로 가독성 올려놓기. (250203)
 
-## Zustand 라이브러리 관련
+## `NOT YET` Main Process에서 Client접속 실패 시 Renderer Process로 전송해야 함. (250209)
+Socket Client 접속 error시에 실패코드를 전송해야 하는데, uuid를 전송할 수 없음.
+따로 socket client용 wrapper를 만들어야 하나...?
+js를 몰라서 모르겠네 어휴
+
+## `NOT YET` Zustand 라이브러리 관련
   - 
 
-## 하위 Component 데이터 출력 관련
+## `DONE` 하위 Component 데이터 출력 관련
 1. 특정 컴포넌트에서 버튼을 조작하면(함수를 실행하면)
 2. 렌더러 프로세스에서 ipcRenderer.send를 통해 데이터를 전송
 3. 메인 프로세스에서 Socket을 통해 데이터를 전송

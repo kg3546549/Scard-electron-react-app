@@ -813,7 +813,7 @@ export const FunctionTest = () => {
                 });
               }}
             >
-              Authentication
+              Read
             </Button>
             </ButtonGroup>
           </CardFooter>
