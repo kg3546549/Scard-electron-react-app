@@ -25,9 +25,59 @@ import { useRequestStore } from './FunctionTestStore';
 import { v4 as uuidv4 } from 'uuid';
 import { Command, ProtocolData, Result } from "@scard/protocols/ReaderRequest";
 
+interface Cards {
+  status:Status;
+  result:string[];
+}
 
+interface ReacerConnectCards {
+  SocketConnect:Cards;
+  EstablishContext:Cards;
+  ReaderList:Cards;
+  ConnectCard:Cards;
+  GetATR:Cards;
+  Transmit:Cards;
+}
+
+// ipcRenderer.invoke를 이용해 uuid없이 구현하는것을 검토해 보았으나,
+// 어짜피 Socket쪽도 단방향 송신으로 이루어져 있기 때문에, uuid는 필수 불가결하다는 것을 알았습니다.
+// 하지만 invoke를 사용하는 법을 알았으니 다행입니다.
+
+const badgeColor: Map<Status, string> = new Map([
+  ["ready", "gray"],
+  ["processing", "yellow"],
+  ["success", "green"],
+  ["fail", "red"],
+]);
 
 const WinscardTestView = () => {
+
+  const [testCards, setTestCards] = useState<ReacerConnectCards>({
+    SocketConnect : {
+      status:"ready",
+      result:[]
+    },
+    EstablishContext : {
+      status:"ready",
+      result:[]
+    },
+    ReaderList : {
+      status:"ready",
+      result:[]
+    },
+    ConnectCard : {
+      status:"ready",
+      result:[]
+    },
+    GetATR : {
+      status:"ready",
+      result:[]
+    },
+    Transmit : {
+      status:"ready",
+      result:[]
+    },
+  });
 
   useEffect(() => {
     // window.api.reader();
@@ -43,8 +93,9 @@ const WinscardTestView = () => {
             <Stack direction={"row"}>
               <Heading size={"sm"}> Socket Connect </Heading>
               <Badge 
+                colorScheme={badgeColor.get(testCards.SocketConnect.status)}
               >
-                
+                {testCards.SocketConnect.status}
               </Badge>
             </Stack>
           </CardHeader>
@@ -53,6 +104,7 @@ const WinscardTestView = () => {
 
             <Textarea 
               readOnly 
+              value={testCards.SocketConnect.result}
             />
             
           </CardBody>
@@ -62,18 +114,26 @@ const WinscardTestView = () => {
             <Button
               colorScheme="blue"
               onClick={() => {     
-                console.log(":: ipcRenderer Connect Btn Click ::");
-                window.api.reader("AA").then((e)=>{
-                  console.log(":: ipcRenderer - reader ::");
-                  console.log("TEST : " + e);
-                })           
+                window.api.socket(["connect"]).then((e)=>{
+                  console.log(e);
+
+                  if(e[0] == "Success") {
+                    setTestCards({
+                      ...testCards,
+                      SocketConnect : {
+                        result : e,
+                        status : "success"
+                      }
+                    });
+                  }
+                })
               }}
             >
               Connect    
             </Button>
             <Button
               
-              onClick={() => {                
+              onClick={() => {
               }}
             >
               Disconnect

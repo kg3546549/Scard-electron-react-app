@@ -34,8 +34,8 @@ export const FunctionTest = () => {
   const badgeColor: Map<Status, string> = new Map([
     ["ready", "gray"],
     ["processing", "yellow"],
-    ["Success", "green"],
-    ["Fail", "red"],
+    ["success", "green"],
+    ["fail", "red"],
   ]);
 
   // const { ipcRenderer } = window.require("electron");
@@ -56,8 +56,21 @@ export const FunctionTest = () => {
     HALT: null,
   });
 
+  const UUIDtoData = (id:UUIDTYPE):ComponentData => {
+    
+    if(id == null || responses[id!] == null) {
+      return {
+      data : [],
+      uuid : "",
+      status : "ready",
+      }
+    };
+    
+    return responses[id!];
+    
+  }
+
   const [loadkeyInput, setLoadkeyInput] = useState("FFFFFFFFFFFF");
-  const [loadkeyType, setLoadkeyType] = useState("A");
   const [transData, setTransData] = useState("");
   const [authKeyType, setAuthkeyType] = useState("A");
   
@@ -68,41 +81,39 @@ export const FunctionTest = () => {
   const [curBlock, setCurBlock] = useState(0);
 
 
+  window.electron.ipcRenderer.on("channel", (event:any, responseData:ProtocolData)=>{
+    //responseData를 받으면
+    //responseData의 UUID에 맞는 데이터를 집어넣음.
+    //데이터를 집어넣을 떄 데이터를 파싱해서 집어넣으면
+    //그걸 참조하는 곳에서는 uuid로 참조해서 바인딩하고있으니
+    //파싱된 데이터가 출력되도록 함
+    //그럼 애초에 파싱된 데이터를 집어넣어야 하고.
+    //receiveResponse 에는 파싱된 데이터를 집어넣어놔야함.
+
+    console.log(" :: IPC Renderer Listener ::")
+    console.log(responseData);
+
+    let responseStatus:Status = "ready";
+    switch(responseData.result) {
+      case Result.Success : responseStatus="success"; break;
+      default : responseStatus="fail";break;
+    }
+
+    const componentData:ComponentData = {
+      data : responseData.data,
+      status : responseStatus,
+      uuid : responseData.uuid
+    }
+
+    console.log(componentData);
+
+    useRequestStore.getState().receiveResponse(responseData.uuid, componentData);
+    
+  })
+
   useEffect(()=>{
-    // ipcRenderer.on("channel", (event:any, responseData:ProtocolData)=>{
-    //   //responseData를 받으면
-    //   //responseData의 UUID에 맞는 데이터를 집어넣음.
-    //   //데이터를 집어넣을 떄 데이터를 파싱해서 집어넣으면
-    //   //그걸 참조하는 곳에서는 uuid로 참조해서 바인딩하고있으니
-    //   //파싱된 데이터가 출력되도록 함
-    //   //그럼 애초에 파싱된 데이터를 집어넣어야 하고.
-    //   //receiveResponse 에는 파싱된 데이터를 집어넣어놔야함.
-
-    //   console.log(" :: IPC Renderer Listener ::")
-    //   console.log(responseData);
-
-    //   let responseStatus:Status = "ready";
-    //   switch(responseData.result) {
-    //     case Result.Success : responseStatus="Success"; break;
-    //     default : responseStatus="Fail";break;
-    //   }
-
-    //   const componentData:ComponentData = {
-    //     data : responseData.data,
-    //     status : responseStatus,
-    //     uuid : responseData.uuid
-    //   }
-
-    //   console.log(componentData);
-
-    //   useRequestStore.getState().receiveResponse(responseData.uuid, componentData);
-      
-    // })
+    
   });
-
-  // useEffect(() => {
-  //   console.log("Responses updated:", responses);
-  // }, [responses]);
 
   return (
     <>
@@ -117,11 +128,10 @@ export const FunctionTest = () => {
               <Heading size={"sm"}> Socket Connect </Heading>
               <Badge 
                 colorScheme={
-                  componentUUID.SocketConnect && responses[componentUUID.SocketConnect!]?
-                  badgeColor.get(responses[componentUUID.SocketConnect!].status) : "gray"
+                  badgeColor.get(UUIDtoData(componentUUID.SocketConnect).status)
                 }
               >
-                {componentUUID.SocketConnect && responses[componentUUID.SocketConnect!]?responses[componentUUID.SocketConnect!].status:"Ready"}
+                {UUIDtoData(componentUUID.SocketConnect).status}
               </Badge>
             </Stack>
           </CardHeader>
@@ -131,8 +141,7 @@ export const FunctionTest = () => {
             <Textarea 
               readOnly 
               value={
-                componentUUID.SocketConnect && responses[componentUUID.SocketConnect!]?
-                responses[componentUUID.SocketConnect!].data:""
+                UUIDtoData(componentUUID.SocketConnect).data
               }
             />
             
@@ -188,13 +197,11 @@ export const FunctionTest = () => {
               <Heading size={"sm"}> Establish Context </Heading>
               <Badge 
                 colorScheme={
-                  componentUUID.EstablishContext && responses[componentUUID.EstablishContext!]?
-                  badgeColor.get(responses[componentUUID.EstablishContext!].status) : "gray"
+                  badgeColor.get(UUIDtoData(componentUUID.EstablishContext).status)
                 }
               >
                 {
-                componentUUID.EstablishContext && responses[componentUUID.EstablishContext!]?
-                responses[componentUUID.EstablishContext!].status:"Ready"
+                  UUIDtoData(componentUUID.EstablishContext).status
                 }
               </Badge>
             </Stack>
@@ -205,8 +212,7 @@ export const FunctionTest = () => {
             <Textarea 
               readOnly 
               value={
-                componentUUID.EstablishContext && responses[componentUUID.EstablishContext!]?
-                responses[componentUUID.EstablishContext!].data:""
+                UUIDtoData(componentUUID.EstablishContext).data
               }
             />
             
@@ -263,13 +269,11 @@ export const FunctionTest = () => {
               <Heading size={"sm"}> Reader List </Heading>
               <Badge 
                 colorScheme={
-                  componentUUID.ReaderList && responses[componentUUID.ReaderList!]?
-                  badgeColor.get(responses[componentUUID.ReaderList!].status) : "gray"
+                  badgeColor.get(UUIDtoData(componentUUID.ReaderList).status)
                 }
               >
                 {
-                componentUUID.ReaderList && responses[componentUUID.ReaderList!]?
-                responses[componentUUID.ReaderList!].status:"Ready"
+                  UUIDtoData(componentUUID.ReaderList).status
                 }
               </Badge>
             </Stack>
@@ -280,8 +284,7 @@ export const FunctionTest = () => {
             <Textarea 
               readOnly 
               value={
-                componentUUID.ReaderList && responses[componentUUID.ReaderList!]?
-                responses[componentUUID.ReaderList!].data:""
+                UUIDtoData(componentUUID.ReaderList).data
               }
             />
             
@@ -320,13 +323,11 @@ export const FunctionTest = () => {
               <Heading size={"sm"}> Connect Card </Heading>
               <Badge 
                 colorScheme={
-                  componentUUID.ConnectCard && responses[componentUUID.ConnectCard!]?
-                  badgeColor.get(responses[componentUUID.ConnectCard!].status) : "gray"
+                  badgeColor.get(UUIDtoData(componentUUID.ConnectCard).status)
                 }
               >
                 {
-                componentUUID.ConnectCard && responses[componentUUID.ConnectCard!]?
-                responses[componentUUID.ConnectCard!].status:"Ready"
+                  UUIDtoData(componentUUID.ConnectCard).status
                 }
               </Badge>
             </Stack>
@@ -337,8 +338,7 @@ export const FunctionTest = () => {
             <Textarea 
               readOnly 
               value={
-                componentUUID.ConnectCard && responses[componentUUID.ConnectCard!]?
-                responses[componentUUID.ConnectCard!].data:""
+                UUIDtoData(componentUUID.ConnectCard).data
               }
             />
             
@@ -377,13 +377,11 @@ export const FunctionTest = () => {
               <Heading size={"sm"}> Get ATR </Heading>
               <Badge 
                 colorScheme={
-                  componentUUID.GetATR && responses[componentUUID.GetATR!]?
-                  badgeColor.get(responses[componentUUID.GetATR!].status) : "gray"
+                  badgeColor.get(UUIDtoData(componentUUID.GetATR).status)
                 }
               >
                 {
-                componentUUID.GetATR && responses[componentUUID.GetATR!]?
-                responses[componentUUID.GetATR!].status:"Ready"
+                  UUIDtoData(componentUUID.GetATR).status
                 }
               </Badge>
             </Stack>
@@ -394,8 +392,7 @@ export const FunctionTest = () => {
             <Textarea 
               readOnly 
               value={
-                componentUUID.GetATR && responses[componentUUID.GetATR!]?
-                responses[componentUUID.GetATR!].data:""
+                UUIDtoData(componentUUID.GetATR).data
               }
             />
             
@@ -436,13 +433,11 @@ export const FunctionTest = () => {
               <Heading size={"sm"}> Transmit </Heading>
               <Badge 
                 colorScheme={
-                  componentUUID.Transmit && responses[componentUUID.Transmit!]?
-                  badgeColor.get(responses[componentUUID.Transmit!].status) : "gray"
+                  badgeColor.get(UUIDtoData(componentUUID.Transmit).status)
                 }
               >
                 {
-                componentUUID.Transmit && responses[componentUUID.Transmit!]?
-                responses[componentUUID.Transmit!].status:"Ready"
+                  UUIDtoData(componentUUID.Transmit).status
                 }
               </Badge>
             </Stack>
@@ -462,8 +457,7 @@ export const FunctionTest = () => {
             <Textarea 
               readOnly 
               value={
-                componentUUID.Transmit && responses[componentUUID.Transmit!]?
-                responses[componentUUID.Transmit!].data:""
+                UUIDtoData(componentUUID.Transmit).data
               }
             />
             
@@ -514,13 +508,11 @@ export const FunctionTest = () => {
               <Heading size={"sm"}> Get UID </Heading>
               <Badge 
                 colorScheme={
-                  componentUUID.GetUID && responses[componentUUID.GetUID!]?
-                  badgeColor.get(responses[componentUUID.GetUID!].status) : "gray"
+                  badgeColor.get(UUIDtoData(componentUUID.GetUID).status)
                 }
               >
                 {
-                componentUUID.GetUID && responses[componentUUID.GetUID!]?
-                responses[componentUUID.GetUID!].status:"Ready"
+                  UUIDtoData(componentUUID.GetUID).status
                 }
               </Badge>
             </Stack>
@@ -530,10 +522,7 @@ export const FunctionTest = () => {
 
             <Textarea 
               readOnly 
-              value={
-                componentUUID.GetUID && responses[componentUUID.GetUID!]?
-                responses[componentUUID.GetUID!].data:""
-              }
+              value={UUIDtoData(componentUUID.GetUID).data}
             />
             
           </CardBody>
@@ -571,14 +560,10 @@ export const FunctionTest = () => {
               <Heading size={"sm"}> Load Key </Heading>
               <Badge 
                 colorScheme={
-                  componentUUID.LoadKey && responses[componentUUID.LoadKey!]?
-                  badgeColor.get(responses[componentUUID.LoadKey!].status) : "gray"
+                  badgeColor.get(UUIDtoData(componentUUID.LoadKey).status)
                 }
               >
-                {
-                componentUUID.LoadKey && responses[componentUUID.LoadKey!]?
-                responses[componentUUID.LoadKey!].status:"Ready"
-                }
+                {UUIDtoData(componentUUID.LoadKey).status}
               </Badge>
             </Stack>
           </CardHeader>
@@ -597,10 +582,7 @@ export const FunctionTest = () => {
 
             <Textarea 
               readOnly 
-              value={
-                componentUUID.LoadKey && responses[componentUUID.LoadKey!]?
-                responses[componentUUID.LoadKey!].data:""
-              }
+              value={UUIDtoData(componentUUID.LoadKey).data}
             />
             
           </CardBody>
@@ -641,14 +623,10 @@ export const FunctionTest = () => {
               <Heading size={"sm"}> Authentication </Heading>
               <Badge 
                 colorScheme={
-                  componentUUID.Authentication && responses[componentUUID.Authentication!]?
-                  badgeColor.get(responses[componentUUID.Authentication!].status) : "gray"
+                  badgeColor.get(UUIDtoData(componentUUID.Authentication).status)
                 }
               >
-                {
-                componentUUID.Authentication && responses[componentUUID.Authentication!]?
-                responses[componentUUID.Authentication!].status:"Ready"
-                }
+                {UUIDtoData(componentUUID.Authentication).status}
               </Badge>
             </Stack>
           </CardHeader>
@@ -703,8 +681,7 @@ export const FunctionTest = () => {
             <Textarea 
               readOnly 
               value={
-                componentUUID.Authentication && responses[componentUUID.Authentication!]?
-                responses[componentUUID.Authentication!].data:""
+                UUIDtoData(componentUUID.Authentication).data
               }
             />
             
@@ -747,13 +724,11 @@ export const FunctionTest = () => {
               <Heading size={"sm"}> Read Block </Heading>
               <Badge 
                 colorScheme={
-                  componentUUID.ReadBlock && responses[componentUUID.ReadBlock!]?
-                  badgeColor.get(responses[componentUUID.ReadBlock!].status) : "gray"
+                  badgeColor.get(UUIDtoData(componentUUID.ReadBlock).status)
                 }
               >
                 {
-                componentUUID.ReadBlock && responses[componentUUID.ReadBlock!]?
-                responses[componentUUID.ReadBlock!].status:"Ready"
+                UUIDtoData(componentUUID.ReadBlock).status
                 }
               </Badge>
             </Stack>
@@ -784,8 +759,7 @@ export const FunctionTest = () => {
             <Textarea 
               readOnly 
               value={
-                componentUUID.ReadBlock && responses[componentUUID.ReadBlock!]?
-                responses[componentUUID.ReadBlock!].data:""
+                UUIDtoData(componentUUID.ReadBlock).data
               }
             />
             
@@ -826,8 +800,8 @@ export const FunctionTest = () => {
         <Card>
           <CardHeader>
             <Stack direction={"row"}>
-              <Heading size={"sm"}> Write Block </Heading>
-              <Badge colorScheme="green">Success</Badge>
+              <Heading size={"sm"}> Write Block - 개발 중 </Heading>
+              <Badge colorScheme="gray">not ready</Badge>
             </Stack>
           </CardHeader>
           <CardBody mt={-5} mb={-5} alignContent={"space-around"}>
@@ -844,8 +818,8 @@ export const FunctionTest = () => {
         <Card>
           <CardHeader>
             <Stack direction={"row"}>
-              <Heading size={"sm"}> HALT </Heading>
-              <Badge colorScheme="green">Success</Badge>
+              <Heading size={"sm"}> HALT - 개발 중 </Heading>
+              <Badge colorScheme="gray">not ready</Badge>
             </Stack>
           </CardHeader>
           <CardBody mt={-5} mb={-5} alignContent={"space-around"}>

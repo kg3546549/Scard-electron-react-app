@@ -9,7 +9,8 @@ const Command = {
   Cmd_SCard_Connect_Card: 103,
   Cmd_SCard_Disconnect_Card: 104, // Return Default Data
   Cmd_SCard_Transmit: 105, // Return Cmd_SCard_Transmit_Data
-
+  Cmd_SCard_GetATR: 106,
+  
   Cmd_MI_Get_UID: 201,
   Cmd_MI_Load_Key: 202,
   Cmd_MI_Authentication: 203,

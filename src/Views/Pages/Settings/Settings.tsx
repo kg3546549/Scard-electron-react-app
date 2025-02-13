@@ -13,7 +13,7 @@ export const Settings = () => {
         <TabList>
           <Tab>General</Tab>
           <Tab>Function Test</Tab>
-          <Tab>Function Test V2</Tab>
+          {/* <Tab>Function Test V2</Tab> */}
         </TabList>
         <TabPanels>
           <TabPanel>
@@ -22,9 +22,9 @@ export const Settings = () => {
           <TabPanel>
             <FunctionTest />
           </TabPanel>
-          <TabPanel>
+          {/* <TabPanel>
             <FunctionTestV2/>
-          </TabPanel>
+          </TabPanel> */}
         </TabPanels>
       </Tabs>
     </>

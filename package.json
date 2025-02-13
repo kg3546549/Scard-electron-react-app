@@ -16,6 +16,7 @@
     "@types/react-dom": "^18.0.0",
     "customize-cra": "^1.0.0",
     "electron-reload": "^2.0.0-alpha.1",
+    "electron-window-state": "^5.0.3",
     "framer-motion": "^11.18.1",
     "react": "^19.0.0",
     "react-app-rewired": "^2.2.1",
@@ -38,7 +39,8 @@
     "react-start": "set BROWSER=none && yarn start",
     "electron-start": "set ELECTRON_START_URL=http://localhost:3000 && electron .",
     "electron-pack": "yarn build && electron-builder build -c.extraMetadata.main=build/Main.js",
-    "refresh-link": "yarn link @scard/protocols"
+    "remove-protocols": "yarn remove @scard/protocols",
+    "add-protocols": "yarn add file:./Protocols"
   },
   "eslintConfig": {
     "extends": [

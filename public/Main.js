@@ -5,49 +5,32 @@ const path = require('path');
 const url = require('url');
 const net = require('net');
 const {Command, Sender, Result} = require('@scard/protocols/ReaderRequest');
+const { electron } = require('process');
+const windowStateKeeper = require('electron-window-state');
 
 const client = new net.Socket();
 let clientStatus = false
 
 
-
+require('electron-reload')(__dirname, {
+    electron: require(`${__dirname}/../node_modules/electron`)
+});
 
 let mainWindow;
 
-client.on('close', () => {
-    console.log("socket Closed");
-    clientStatus = false;
-});
 
-client.on('error', (err)=> {
 
-    console.log("socket Error Occured");
-    clientStatus = false;
 
-    mainWindow.webContents.send('channel', responseData);
-})
-
-client.on('data', (data)=> {
-    console.log("Socket Data Received!");
-    console.log(data);
-    const json = JSON.parse( data.toString('utf-8') );
-
-    let result = json["result"]==99?"Fail":"Success";
-    console.log(`Result : ${result}`);
-
-    console.log(json);
-
-    mainWindow.webContents.send('channel', json);
-
-})
-
-console.log("__dirname : " + path.join(__dirname, "../src/preload.js"));
 
 function createWindow() {
-    /*
-    * 넓이 600 높이 600 FHD 풀스크린 앱을 실행시킵니다.
-    * */
+    let mainWindowState = windowStateKeeper({
+        defaultWidth: 800,
+        defaultHeight: 600
+    });
+
     mainWindow = new BrowserWindow({
+        x: mainWindowState.x,
+        y: mainWindowState.y,
         width:1300,
         height:800,
         webPreferences : {
@@ -77,12 +60,38 @@ function createWindow() {
 
     mainWindow.loadURL(startUrl);
 
-    
-
+    mainWindowState.manage(mainWindow);
 }
 
 app.on('ready', createWindow);
 
+
+client.on('close', () => {
+    console.log("socket Closed");
+    clientStatus = false;
+});
+
+client.on('error', (err)=> {
+
+    console.log("socket Error Occured");
+    clientStatus = false;
+
+    mainWindow.webContents.send('channel', responseData);
+})
+
+client.on('data', (data)=> {
+    console.log("Socket Data Received!");
+    console.log(data);
+    const json = JSON.parse( data.toString('utf-8') );
+
+    let result = json["result"]==99?"Fail":"Success";
+    console.log(`Result : ${result}`);
+
+    console.log(json);
+
+    mainWindow.webContents.send('channel', json);
+
+})
 
 function ReaderControl(cmd,uuid,data) {
     let responseData = {
@@ -369,7 +378,63 @@ ipcMain.on("requestChannel", async (event, requestData) => {
 
 
 
-ipcMain.handle("reader", async (e) => {
+ipcMain.handle("reader", async (e, data) => {
     console.log(":: ipcMain - reader ::");
-    return "TEST!!"+e;
+    // console.log(e);
+    console.log(data);
+    return ["TEST!!"+data];
 });
+
+
+const connectToServer = (port, host) => {
+    return new Promise((resolve, reject) => {
+        client.connect(port, host, () => {
+        console.log('Socket Connection Success');
+        clientStatus = true;
+        resolve(); // 연결 성공 시 resolve
+        });
+
+        client.on('error', (err) => {
+        console.error('Connection Error:', err);
+        reject(err); // 오류 발생 시 reject
+        });
+    });
+};
+
+ipcMain.handle("socket", async (e, data) => {
+
+    switch (data[0]) {
+        case "connect" : {
+            if( clientStatus == false ) {
+                await connectToServer(12345, "127.0.0.1");
+                return ["Success"]
+            }
+            else {
+                console.log("Socket is Already Connected");
+                return ["Fail"];
+            }
+        }
+        break;
+
+        case "disconnect" : {
+            if( clientStatus == true ) {
+                client.destroy();
+                clientStatus = false;
+                console.log("Socket Close Success");
+
+                return ["Success"];
+            }
+            else {
+                console.log("Socket is not Connected");
+
+                return ["Fail"];
+            }
+        }
+        break;
+
+        default : {
+            return ["error"]
+        }
+        break;
+    }
+})
