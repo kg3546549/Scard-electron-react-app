@@ -53,3 +53,10 @@ js를 몰라서 모르겠네 어휴
 4. MainProcess가 그걸 받아서 다시 Renderer Process에 전달해야 함.
 5. 데이터를 받으면 Zustand Store에 결과값을 저장하면.
 6. 원래 Null이었던 데이터가 값이 있는 데이터로 바뀌면서 화면에 출력됌~
+``` javascript
+componentUUID.SocketConnect && responses[componentUUID.SocketConnect!]?
+                responses[componentUUID.SocketConnect!].data:""
+```
+Socket Connect에 UUID가 부여되어 있고, response에서 UUID로 SocketConnect로 조회했을 때 있다면,
+
+response에서 값을 찾아서 return한다. 아니면 ""을 쓴다.

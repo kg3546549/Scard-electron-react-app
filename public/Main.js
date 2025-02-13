@@ -1,5 +1,6 @@
-const {app, BrowserWindow, ipcMain} = require('electron');
+const {app, BrowserWindow, ipcMain, session} = require('electron');
 
+const { spawn } = require('child_process');
 
 const path = require('path');
 const url = require('url');
@@ -23,6 +24,7 @@ let mainWindow;
 
 
 function createWindow() {
+    //위치 저장
     let mainWindowState = windowStateKeeper({
         defaultWidth: 800,
         defaultHeight: 600
@@ -41,6 +43,7 @@ function createWindow() {
             
         },
         autoHideMenuBar: true,
+        
     });
 
     /*
@@ -285,6 +288,11 @@ ipcMain.on("action", async (event, cmd) => {
 })
 
 
+//background Process 실행
+const exePath = __dirname+"/../winscard-driver/winscard-pcsc.exe";
+const args = ['arg1', 'arg2'];
+const child = spawn(exePath, args);
+
 
 /**
  * @description IPC Listener to Renderer Process
@@ -306,6 +314,14 @@ ipcMain.on("requestChannel", async (event, requestData) => {
     }
 
     switch(requestData.cmd) {
+        case Command.Cmd_Socket_Execute: {
+            console.log("Execute");
+            
+
+            return;
+        }
+        break;
+
         case Command.Cmd_Socket_Connect :{
             if( clientStatus == false ) {
                 client.connect(12345,'127.0.0.1', ()=>{
