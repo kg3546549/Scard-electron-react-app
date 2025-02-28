@@ -20,7 +20,10 @@ require('electron-reload')(__dirname, {
 let mainWindow;
 
 
-
+//Notebook reactDevToolsPath
+// const reactDevToolsPath = path.join(
+//     'C:/Users/S1SECOM/AppData/Local/Google/Chrome/User Data/Default/Extensions/fmkadmapgofadopljbjfkapdkoienihi/6.1.1_0'
+// )
 
 
 function createWindow() {
@@ -65,6 +68,12 @@ function createWindow() {
 
     mainWindowState.manage(mainWindow);
 }
+
+
+//DevTools
+// app.whenReady().then(async () => {
+//     await session.defaultSession.loadExtension(reactDevToolsPath)
+// });
 
 app.on('ready', createWindow);
 

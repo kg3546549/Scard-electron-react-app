@@ -8,7 +8,7 @@ import { FunctionTestV2 } from "./FunctionTestV2";
 export const Settings = () => {
   return (
     <>
-    <Heading>SETTINGS</Heading>
+      <Heading>SETTINGS</Heading>
       <Tabs>
         <TabList>
           <Tab>General</Tab>

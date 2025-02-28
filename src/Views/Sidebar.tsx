@@ -30,7 +30,7 @@ import { FaSimCard } from "react-icons/fa";
 
 import { IconType } from 'react-icons'
 import { FastReading } from './Pages/FastReading';
-import { FullReading } from './Pages/FullReading';
+import { FullReading } from './Pages/FullReading/FullReading';
 import { ISO7816 } from './Pages/ISO7816';
 import { Settings } from './Pages/Settings/Settings';
 import { Route, Routes, useNavigate } from 'react-router-dom';
@@ -99,6 +99,7 @@ export default function Sidebar() {
   ]
   
   return (
+    //TODO : 120vh 고정인데... 어케바꿔야하지
     <Box minH="100vh" bg={useColorModeValue('gray.100', 'gray.900')}>
       <SidebarContent onClose={() => onClose} LinkItems={LinkItems} display={{ base: 'none', md: 'block' }} />
       <Drawer
@@ -114,7 +115,7 @@ export default function Sidebar() {
       </Drawer>
       {/* mobilenav */}
       <MobileNav display={{ base: 'flex', md: 'none' }} onOpen={onOpen} />
-      <Box ml={{ base: 0, md: 60 }} p="4">
+      <Box ml={{ base: 0, md: 60 }} p="4" >
         {/* Content */}
         
         
