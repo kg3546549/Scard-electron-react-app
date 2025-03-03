@@ -298,9 +298,9 @@ ipcMain.on("action", async (event, cmd) => {
 
 
 //background Process 실행
-const exePath = __dirname+"/../winscard-driver/winscard-pcsc.exe";
-const args = ['arg1', 'arg2'];
-const child = spawn(exePath, args);
+// const exePath = __dirname+"/../winscard-driver/winscard-pcsc.exe";
+// const args = ['arg1', 'arg2'];
+// const child = spawn(exePath, args);
 
 
 /**

@@ -102,6 +102,10 @@ export const FullReading = () => {
   const [SAK, setSAK] = useState("-");
   const [UID, setUID] = useState("-");
 
+
+  const [key, setKey] = useState("FFFFFFFFFFFF");
+
+
   window.electron.ipcRenderer.on("channel", (event:any, responseData:ProtocolData)=>{
     console.log(" :: IPC Renderer Listener - FullReading ::")
     console.log(responseData);
@@ -117,6 +121,21 @@ export const FullReading = () => {
         setUID(responseData.data[0]);
       }
       break;
+
+      case "FullScan-ReadBlock" : {
+
+        let blockNum:number = Number(responseData.data[0]);
+
+        let sectorNum = Math.trunc(blockNum/4);
+        let blockIdx = Math.trunc(blockNum%4);
+
+        let newSectorData = [...sectorData];
+        newSectorData[sectorNum][blockIdx] = responseData.data[1].substring(0,32);
+
+        setSectorData(newSectorData);
+      }
+      break;
+
     }
 
   })
@@ -205,7 +224,50 @@ export const FullReading = () => {
             </CardHeader>
             <CardBody>
               <Stack direction={"column"}>
-                <Button colorScheme="blue">
+                <Button 
+                  colorScheme="blue"
+                  onClick={ async ()=>{
+                    let i = 0;
+                    ReaderControl(Command.Cmd_Socket_Connect,"FullScanCardStatus-SocketConnect", []);
+                    await delay(100);
+
+                    ReaderControl(Command.Cmd_SCard_Establish_Context,"FullScanCardStatus-EstablishContext", []);
+                    await delay(100);
+
+                    ReaderControl(Command.Cmd_SCard_Reader_List,"FullScanCardStatus1-ReaderList", []);
+                    await delay(100);
+
+                    ReaderControl(Command.Cmd_SCard_Connect_Card,"FullScanCardStatus1-ConnectCard", []);
+                    await delay(100);
+
+                    ReaderControl(Command.Cmd_SCard_GetATR,"FullScanCardStatus1-GetATR", []);
+                    await delay(100);
+
+                    ReaderControl(Command.Cmd_MI_Get_UID,"FullScanCardStatus1-GetUID", []);
+                    await delay(100);
+
+                    
+                    
+                    for(i=0;i<16;i++) {
+                      if(sectorSelect[i] == true) {
+                        ReaderControl(Command.Cmd_MI_Load_Key,"FullScan-LoadKey", [key]);
+                        await delay(100);
+
+                        ReaderControl(Command.Cmd_MI_Authentication,"FullScan-Authentication", [String(i*4), "A"]);
+                        await delay(100);
+
+                        ReaderControl(Command.Cmd_MI_Read_Block,"FullScan-ReadBlock", [String( (i)*4 )]);
+                        await delay(200);
+                        ReaderControl(Command.Cmd_MI_Read_Block,"FullScan-ReadBlock", [String( (i)*4 +1)]);
+                        await delay(200);
+                        ReaderControl(Command.Cmd_MI_Read_Block,"FullScan-ReadBlock", [String( (i)*4 +2)]);
+                        await delay(200);
+                        ReaderControl(Command.Cmd_MI_Read_Block,"FullScan-ReadBlock", [String( (i)*4 +3)]);
+                        await delay(200);
+                      }
+                    }
+                  }}
+                >
                   <FaSearch/>
                   <Text ml={2}> Start Full Scan </Text>
                 </Button>
@@ -256,6 +318,7 @@ export const FullReading = () => {
                 {
                   sectorData.map( (data, idx) => (
                     <Box
+                      
                       as="button"
                       onClick={()=>{
                         const newSelect = [...sectorSelect];
@@ -298,7 +361,13 @@ export const FullReading = () => {
                     <Text fontWeight={"bold"} > Key </Text>
                   </Center>  
 
-                  <Input htmlSize={8} width={"auto"} variant="outline" value={"FFFFFFFFFFFF"}/>
+                  <Input 
+                    htmlSize={8} 
+                    width={"auto"} 
+                    variant="outline" 
+                    value={key} 
+                    onChange={(e)=>setKey(e.target.value)}
+                  />
                 </Flex>
 
               </Stack>
