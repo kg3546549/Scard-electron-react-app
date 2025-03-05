@@ -92,10 +92,11 @@ export const FullReading = () => {
   ]);
 
   const [sectorSelect, setSectorSelect] = useState(
-    [true, true, true, true,true, true, true, true,true, true, true, true,true, true, true, true]
+    // [true, true, true, true,true, true, true, true,true, true, true, true,true, true, true, true]
+    [false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false]
   );
 
-  const [selectAll, setSelectAll] = useState(true);
+  const [selectAll, setSelectAll] = useState(false);
 
   const [cardType, setCardType] = useState("-");
   const [ATR, setATR] = useState("-");
@@ -106,39 +107,39 @@ export const FullReading = () => {
   const [key, setKey] = useState("FFFFFFFFFFFF");
 
 
-  window.electron.ipcRenderer.on("channel", (event:any, responseData:ProtocolData)=>{
-    console.log(" :: IPC Renderer Listener - FullReading ::")
-    console.log(responseData);
+  // window.electron.ipcRenderer.on("channel", (event:any, responseData:ProtocolData)=>{
+  //   console.log(" :: IPC Renderer Listener - FullReading ::")
+  //   console.log(responseData);
 
-    switch(responseData.uuid) {
+  //   switch(responseData.uuid) {
 
-      case "FullScanCardStatus1-GetATR" : {
-        setATR(responseData.data[0]);
-      }
-      break;
+  //     case "FullScanCardStatus1-GetATR" : {
+  //       setATR(responseData.data[0]);
+  //     }
+  //     break;
 
-      case "FullScanCardStatus1-GetUID" : {
-        setUID(responseData.data[0]);
-      }
-      break;
+  //     case "FullScanCardStatus1-GetUID" : {
+  //       setUID(responseData.data[0]);
+  //     }
+  //     break;
 
-      case "FullScan-ReadBlock" : {
+  //     case "FullScan-ReadBlock" : {
 
-        let blockNum:number = Number(responseData.data[0]);
+  //       let blockNum:number = Number(responseData.data[0]);
 
-        let sectorNum = Math.trunc(blockNum/4);
-        let blockIdx = Math.trunc(blockNum%4);
+  //       let sectorNum = Math.trunc(blockNum/4);
+  //       let blockIdx = Math.trunc(blockNum%4);
 
-        let newSectorData = [...sectorData];
-        newSectorData[sectorNum][blockIdx] = responseData.data[1].substring(0,32);
+  //       let newSectorData = [...sectorData];
+  //       newSectorData[sectorNum][blockIdx] = responseData.data[1].substring(0,32);
 
-        setSectorData(newSectorData);
-      }
-      break;
+  //       setSectorData(newSectorData);
+  //     }
+  //     break;
 
-    }
+  //   }
 
-  })
+  // })
 
   return (
     <>

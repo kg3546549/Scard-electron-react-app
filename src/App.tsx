@@ -19,7 +19,10 @@ import { BrowserRouter } from 'react-router-dom';
 
 
 function App() {
- 
+
+  //TODO : Rendering 되면 ipcRenderer 통해서 Background Process 실행 요청, 성공 시에 응답 후 Socket Connection까지 여기서 하도록.
+  
+
   return (
     <ChakraProvider>
       <BrowserRouter>

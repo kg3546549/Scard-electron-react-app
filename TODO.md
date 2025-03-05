@@ -60,3 +60,7 @@ componentUUID.SocketConnect && responses[componentUUID.SocketConnect!]?
 Socket Connect에 UUID가 부여되어 있고, response에서 UUID로 SocketConnect로 조회했을 때 있다면,
 
 response에서 값을 찾아서 return한다. 아니면 ""을 쓴다.
+
+
+## `NOT YET` APDU 전송을 Diagram을 리딩 Flow 순서대로 배치해서 리딩하는 기능.
+Custom APDU를 넣어서 동작하도록 함

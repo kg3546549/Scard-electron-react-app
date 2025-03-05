@@ -13,7 +13,17 @@ import {
   useDisclosure,
   BoxProps,
   FlexProps,
-  Switch
+  Switch,
+  DrawerFooter,
+  Button,
+  DrawerBody,
+  Spacer,
+  Stat,
+  StatLabel,
+  StatHelpText,
+  StatNumber,
+  StatArrow,
+  Badge
 } from '@chakra-ui/react'
 
 import {
@@ -34,6 +44,7 @@ import { FullReading } from './Pages/FullReading/FullReading';
 import { ISO7816 } from './Pages/ISO7816';
 import { Settings } from './Pages/Settings/Settings';
 import { Route, Routes, useNavigate } from 'react-router-dom';
+import { color } from 'framer-motion';
 
 
 
@@ -110,8 +121,11 @@ export default function Sidebar() {
         onOverlayClick={onClose}
         size="full">
         <DrawerContent>
-          <SidebarContent onClose={onClose} LinkItems={LinkItems} />
+          <DrawerBody>
+            <SidebarContent onClose={onClose} LinkItems={LinkItems} />
+          </DrawerBody>
         </DrawerContent>
+        
       </Drawer>
       {/* mobilenav */}
       <MobileNav display={{ base: 'flex', md: 'none' }} onOpen={onOpen} />
@@ -150,7 +164,7 @@ const SidebarContent = ({ onClose,LinkItems, ...rest }: SidebarProps) => {
       pos="fixed"
       h="full"
       {...rest}>
-      <Flex h="20" alignItems="center" mx="8" justifyContent="space-between">
+      <Flex h="10vh" alignItems="center" mx="8" justifyContent="space-between">
         {/* <IoIdCardOutline /> */}
         <Text fontSize="2xl" fontFamily="monospace" fontWeight="extrabold">
           CARD Tools
@@ -165,20 +179,30 @@ const SidebarContent = ({ onClose,LinkItems, ...rest }: SidebarProps) => {
         
         <CloseButton display={{ base: 'flex', md: 'none' }} onClick={onClose} />
       </Flex>
-      {LinkItems.map((link,idx) => (
-        <NavItem 
-          key={link.name} 
-          icon={link.icon} 
-          onClick={
-            ()=>{
-              link.onClick(idx);
-              onClose();
+    
+      <Flex direction={"column"} minHeight={"90vh"}>
+        {LinkItems.map((link,idx) => (
+          <NavItem 
+            key={link.name} 
+            icon={link.icon} 
+            onClick={
+              ()=>{
+                link.onClick(idx);
+                onClose();
+              }
             }
-          }
-        >
-          {link.name}
-        </NavItem>
-      ))}
+          >
+            {link.name}
+          </NavItem>
+        ))}
+        <Spacer/>
+        <Flex p={3} justify={"center"} borderTop={"1px"} borderColor={"gray.300"}>
+          <Text fontWeight='bold' align={"center"}>
+            Reader
+            <Badge ml={2} colorScheme='green'>Connected</Badge> 
+          </Text>
+        </Flex>
+      </Flex>
     </Box>
   )
 }
