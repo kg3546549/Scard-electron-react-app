@@ -62,7 +62,7 @@ export const FastReading = () => {
 
   return (
     <>
-    <Heading>Fast Reading</Heading>
+    <Heading size={"lg"}>Fast Reading</Heading>
     <Tabs>
       <TabList>
         <Tab>Reader Select</Tab>

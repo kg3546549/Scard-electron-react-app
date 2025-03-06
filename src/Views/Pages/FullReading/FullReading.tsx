@@ -52,7 +52,7 @@ const SectorCard = ({sectorData, index, selected}:SectorCardFunc) => {
       <CardBody>
         <Stack >
         <Box p={1} bg={"white"} borderRadius={"sm"} textAlign={"center"}>
-          {sectorData[0]}
+            {sectorData[0]}
         </Box>
         <Box p={1} bg={"white"} borderRadius={"sm"} textAlign={"center"}>
           {sectorData[1]}
@@ -107,46 +107,46 @@ export const FullReading = () => {
   const [key, setKey] = useState("FFFFFFFFFFFF");
 
 
-  // window.electron.ipcRenderer.on("channel", (event:any, responseData:ProtocolData)=>{
-  //   console.log(" :: IPC Renderer Listener - FullReading ::")
-  //   console.log(responseData);
+  window.electron.ipcRenderer.on("channel", (event:any, responseData:ProtocolData)=>{
+    console.log(" :: IPC Renderer Listener - FullReading ::")
+    console.log(responseData);
 
-  //   switch(responseData.uuid) {
+    switch(responseData.uuid) {
 
-  //     case "FullScanCardStatus1-GetATR" : {
-  //       setATR(responseData.data[0]);
-  //     }
-  //     break;
+      case "FullScanCardStatus1-GetATR" : {
+        setATR(responseData.data[0]);
+      }
+      break;
 
-  //     case "FullScanCardStatus1-GetUID" : {
-  //       setUID(responseData.data[0]);
-  //     }
-  //     break;
+      case "FullScanCardStatus1-GetUID" : {
+        setUID(responseData.data[0]);
+      }
+      break;
 
-  //     case "FullScan-ReadBlock" : {
+      case "FullScan-ReadBlock" : {
 
-  //       let blockNum:number = Number(responseData.data[0]);
+        let blockNum:number = Number(responseData.data[0]);
 
-  //       let sectorNum = Math.trunc(blockNum/4);
-  //       let blockIdx = Math.trunc(blockNum%4);
+        let sectorNum = Math.trunc(blockNum/4);
+        let blockIdx = Math.trunc(blockNum%4);
 
-  //       let newSectorData = [...sectorData];
-  //       newSectorData[sectorNum][blockIdx] = responseData.data[1].substring(0,32);
+        let newSectorData = [...sectorData];
+        newSectorData[sectorNum][blockIdx] = responseData.data[1].substring(0,32);
 
-  //       setSectorData(newSectorData);
-  //     }
-  //     break;
+        setSectorData(newSectorData);
+      }
+      break;
 
-  //   }
+    }
 
-  // })
+  })
 
   return (
     <>
-    <Box m={5}>
+    <Box m={0}>
       <Flex justify={"space-between"}>
         <Heading mb={5} size={"lg"}>
-          FULL READING
+          Full Reading
         </Heading>
       </Flex>
       <Grid
@@ -315,11 +315,10 @@ export const FullReading = () => {
             </CardHeader>
             <CardBody>
               
-              <SimpleGrid columns={4} gap={4}>
+              <SimpleGrid columns={2} gap={4}>
                 {
                   sectorData.map( (data, idx) => (
                     <Box
-                      
                       as="button"
                       onClick={()=>{
                         const newSelect = [...sectorSelect];

@@ -41,7 +41,7 @@ import { FaSimCard } from "react-icons/fa";
 import { IconType } from 'react-icons'
 import { FastReading } from './Pages/FastReading';
 import { FullReading } from './Pages/FullReading/FullReading';
-import { ISO7816 } from './Pages/ISO7816';
+import { ISO7816 } from './Pages/ISO7816/ISO7816';
 import { Settings } from './Pages/Settings/Settings';
 import { Route, Routes, useNavigate } from 'react-router-dom';
 import { color } from 'framer-motion';
