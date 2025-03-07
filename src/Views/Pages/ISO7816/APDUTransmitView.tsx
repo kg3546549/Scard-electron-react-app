@@ -1,7 +1,10 @@
-import { Badge, Box, Button, Card, CardBody, CardHeader, Divider, Flex, Grid, GridItem, Heading, Icon, Input, Stack, Text } from "@chakra-ui/react";
+import { Badge, Box, Button, Card, CardBody, CardHeader, Divider, Flex, Grid, GridItem, Heading, Icon, Input, Stack, Text, useToast } from "@chakra-ui/react";
 import { useState } from "react";
 
 import { FaPaperPlane, FaXmark } from "react-icons/fa6";
+import { ReaderControl } from "../../../Utils/WinscardUtils";
+import { Command, ProtocolData } from "@scard/protocols/ReaderRequest";
+import { windowsStore } from "process";
 
 const TransactionLogBlock = () => {
 
@@ -51,7 +54,23 @@ const TransactionLogBlock = () => {
 
 export const APDUTransmitView = () => {
 
-  const [transactionLogs] = useState([0,0,0,0,0]);
+  const toast = useToast();
+  const [transactionLogs, setTransLog] = useState([0,0,0,0,0]);
+  const [APDUInput, setAPDUInput] = useState("");
+  const [APDUResult, setAPDUResult] = useState("")
+
+  window.electron.ipcRenderer.on("channel", (event:any, responseData:ProtocolData)=>{
+    switch(responseData.uuid) {
+      case "APDUTransmit1" :{
+
+        setAPDUResult( responseData.data[1] );
+      }
+      break;
+
+
+    }
+
+  });
 
   return (
     <>
@@ -72,12 +91,41 @@ export const APDUTransmitView = () => {
                   APDU Command
                 </Text>
                 <Flex gap={4}>
-                  <Input placeholder="Enter APDU Command(hex format)">
-
+                  <Input
+                    placeholder="Enter APDU Command(hex format)"
+                    value={APDUInput}
+                    onChange={(e)=>{setAPDUInput(e.target.value)}}
+                  >
+                    
                   </Input>
                   <Button 
                     leftIcon={<FaPaperPlane/>} 
                     colorScheme="blue"
+                    onClick={()=>{
+
+                      if( APDUInput.length < 10 ) {
+                        toast({
+                          title : "Available Command",
+                          description : "Command Length Error",
+                          duration : 3000,
+                          colorScheme : "red",
+                        });
+                        return;
+                      }
+
+                      if( APDUInput.length % 2 != 0 ) {
+                        toast({
+                          title : "Available Command",
+                          description : "Command Length have to Even",
+                          duration : 3000,
+                          colorScheme : "red",
+                        });
+                        return;
+                      }
+                      
+                      ReaderControl(Command.Cmd_SCard_Transmit, "APDUTransmit1", [APDUInput]);
+
+                    }}
                   >
                     Send
                   </Button>
@@ -100,7 +148,7 @@ export const APDUTransmitView = () => {
                   alignContent={"center"}
                   p={2}
                 >
-                  90 00
+                  {APDUResult}
                 </Box>
               </Stack>
             </CardBody>
