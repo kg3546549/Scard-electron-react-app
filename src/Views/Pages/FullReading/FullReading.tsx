@@ -287,7 +287,7 @@ export const FullReading = () => {
         </GridItem>
 
         <GridItem colSpan={5} >
-          <Card>
+          <Card overflowY="auto" h={"65vh"}>
             <CardHeader mb={-5}>
               <Flex justify={"space-between"}>
               <Heading size={"md"}>

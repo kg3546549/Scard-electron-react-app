@@ -6,12 +6,19 @@ import { ReaderControl } from "../../../Utils/WinscardUtils";
 import { Command, ProtocolData } from "@scard/protocols/ReaderRequest";
 import { windowsStore } from "process";
 
-const TransactionLogBlock = () => {
+function delay(ms:number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 
+interface transLog {
+  request:string,
+  response:string
+}
+const TransactionLogBlock = ({request, response}:transLog) => {
   return (
     <Box>
-      <Stack direction={'row'} height={'100px'} p={3} align={"center"}>
+      <Stack direction={'row'} height={'120px'} p={3} align={"center"}>
         <Divider 
           orientation="vertical" 
           border={"3px solid"} 
@@ -31,9 +38,10 @@ const TransactionLogBlock = () => {
             >
               Reader
             </Badge>
-            {"00 A4 04 00 0C"}
+            {/* {"00 A4 04 00 0C"} */}
+            {request}
           </Text>
-          <Text textColor={"green.500"} fontWeight={"bold"}>
+          <Text textColor={"green.500"} fontWeight={"bold"} w={"98vh"}>
             <Badge 
               pr={2} 
               pl={2} 
@@ -44,7 +52,8 @@ const TransactionLogBlock = () => {
             >
               Card
             </Badge>
-            {"90 00"}
+            {/* {"90 00"} */}
+            {response}
           </Text>
         </Stack>
       </Stack>
@@ -55,15 +64,33 @@ const TransactionLogBlock = () => {
 export const APDUTransmitView = () => {
 
   const toast = useToast();
-  const [transactionLogs, setTransLog] = useState([0,0,0,0,0]);
+  const [transactionLogs, setTransLog] = useState<transLog[]>([]);
   const [APDUInput, setAPDUInput] = useState("");
   const [APDUResult, setAPDUResult] = useState("")
+  const [cardType, setCardType] = useState("-");
+  const [ATR, setATR] = useState("-");
+  const [SAK, setSAK] = useState("-");
+  const [UID, setUID] = useState("-");
+
 
   window.electron.ipcRenderer.on("channel", (event:any, responseData:ProtocolData)=>{
     switch(responseData.uuid) {
       case "APDUTransmit1" :{
-
         setAPDUResult( responseData.data[1] );
+
+        let newLog = [...transactionLogs];
+        newLog.push({request:responseData.data[0], response:responseData.data[1]});
+        setTransLog( newLog );
+      }
+      break;
+
+      case "APDUTransmit-GetATR" : {
+        setATR(responseData.data[0]);
+      }
+      break;
+
+      case "APDUTransmit-GetUID" : {
+        setUID(responseData.data[0]);
       }
       break;
 
@@ -132,6 +159,10 @@ export const APDUTransmitView = () => {
 
                   <Button 
                     leftIcon={<FaXmark/>}
+                    onClick={()=>{
+                      setAPDUInput("");
+                      setAPDUResult("");
+                    }}
                   >
                     Clear
                   </Button>
@@ -162,7 +193,28 @@ export const APDUTransmitView = () => {
                   <Heading size={"sm"}>
                     Card Information
                   </Heading>
-                  <Button borderRadius={"full"} colorScheme="blue">
+                  <Button
+                    borderRadius={"full"} 
+                    colorScheme="blue"
+                    onClick={async ()=>{
+                      ReaderControl(Command.Cmd_Socket_Connect,"APDUTransmit-SocketConnect", []);
+                      await delay(100);
+  
+                      ReaderControl(Command.Cmd_SCard_Establish_Context,"APDUTransmit-EstablishContext", []);
+                      await delay(100);
+  
+                      ReaderControl(Command.Cmd_SCard_Reader_List,"APDUTransmit-ReaderList", []);
+                      await delay(100);
+  
+                      ReaderControl(Command.Cmd_SCard_Connect_Card,"APDUTransmit-ConnectCard", []);
+                      await delay(100);
+  
+                      ReaderControl(Command.Cmd_SCard_GetATR,"APDUTransmit-GetATR", []);
+                      await delay(100);
+  
+                      ReaderControl(Command.Cmd_MI_Get_UID,"APDUTransmit-GetUID", []);
+                    }}
+                  >
                     Connect
                   </Button>
                 </Flex>
@@ -174,7 +226,7 @@ export const APDUTransmitView = () => {
                     Card Type
                   </Text>
                   <Text fontWeight={"bold"}>
-                    ISO14443 A Type
+                    {cardType}
                   </Text>
                 </Flex>
 
@@ -183,7 +235,7 @@ export const APDUTransmitView = () => {
                     UID
                   </Text>
                   <Text fontWeight={"bold"}>
-                    00:11:22:33
+                    {UID}
                   </Text>
                 </Flex>
 
@@ -192,7 +244,7 @@ export const APDUTransmitView = () => {
                     SAK
                   </Text>
                   <Text fontWeight={"bold"}>
-                    0x28
+                    {SAK}
                   </Text>
                 </Flex>
 
@@ -208,7 +260,7 @@ export const APDUTransmitView = () => {
                   alignContent={"center"}
                   p={2}
                 >
-                  3B8F8001804F0CA000000306030001000000006A
+                  {ATR}
                 </Box>
                 
               </Stack>
@@ -217,18 +269,40 @@ export const APDUTransmitView = () => {
         </GridItem>
 
         <GridItem colSpan={7}>
-          <Card>
+          <Card overflowY="auto" h={"45vh"}>
             <CardHeader mb={-10}>
                 <Heading size={"sm"}>
-                  Transaction Log
+                  <Flex justify={"space-between"}>
+                    Transaction Log
+
+                    {transactionLogs.length!=0? <Button 
+                      size={"xs"}
+                      leftIcon={<FaXmark/>}
+                      colorScheme="blue" 
+                      borderRadius={"full"}
+                      onClick={()=>{
+                        setTransLog([]);
+                      }}
+                    >
+                      Clear
+                    </Button> : <></> }
+                    
+                  </Flex>
                 </Heading>
             </CardHeader>
             <CardBody>
-              <TransactionLogBlock/>
+
+              
               {
                 transactionLogs.map(
                   (value,index)=>(
-                    <TransactionLogBlock/>
+                      <Box
+                        onClick = {()=>{
+                          setAPDUInput(value.request);
+                        }}
+                      >
+                        <TransactionLogBlock request={value.request} response={value.response}/>
+                      </Box>
                   )
                 )  
               }
@@ -237,7 +311,7 @@ export const APDUTransmitView = () => {
         </GridItem>
 
         <GridItem colSpan={3}>
-          <Card>
+          <Card overflowY={"auto"} h={"45vh"}>
             <CardHeader>
               <Heading size={"sm"} mb={-5}>
                 Quick Commands
@@ -245,17 +319,58 @@ export const APDUTransmitView = () => {
             </CardHeader>
             <CardBody>
               <Flex direction={"column"} gap={3}>
-                <Button>
-                  Select AID
+                <Button
+                  onClick={()=>{
+                    setAPDUInput("00A40400");
+                  }}
+                >
+                  Select AID (A4)
                 </Button>
-                <Button>
-                  Get Challenge
+                <Button
+                  onClick={()=>{
+                    setAPDUInput("00840000");
+                  }}
+                >
+                  Get Challenge (84)
                 </Button>
-                <Button>
-                  Extra Authentication
+                <Button
+                  onClick={()=>{
+                    setAPDUInput("00B00000");
+                  }}
+                >
+                  Read Binary (B0)
                 </Button>
-                <Button>
-                  Read Binary
+
+                <Button
+                  onClick={()=>{
+                    setAPDUInput("00B20000");
+                  }}
+                >
+                  Read Record (B2)
+                </Button>
+
+                <Button
+                  onClick={()=>{
+                    setAPDUInput("008A0000");
+                  }}
+                >
+                  Create Session (8A)
+                </Button>
+
+                <Button
+                  onClick={()=>{
+                    setAPDUInput("00820000");
+                  }}
+                >
+                  External Authentication (82)
+                </Button>
+
+                <Button
+                  onClick={()=>{
+                    setAPDUInput("00880000");
+                  }}
+                >
+                  Internal Authentication (88)
                 </Button>
 
               </Flex>
