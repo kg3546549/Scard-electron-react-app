@@ -15,10 +15,6 @@
 - Settings - 설정, 각 기능 별 테스트
 
 
-## Usage
-
-
-
 ## 상세내용
 여기서는 Electron.js를 이용한 GUI Application 관련 내용만을 서술합니다.
 Winscard.h를 이용한 스마트카드 판독기 조작 관련 내용은 아래 Repo를 참고하시기 바랍니다.
