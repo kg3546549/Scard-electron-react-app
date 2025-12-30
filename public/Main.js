@@ -464,3 +464,68 @@ ipcMain.handle("socket", async (e, data) => {
         break;
     }
 })
+
+// Diagram 파일 저장/로드 핸들러
+const { dialog } = require('electron');
+const fs = require('fs').promises;
+
+// 다이어그램 저장 대화상자
+ipcMain.handle('dialog:saveFile', async (event, options) => {
+    const result = await dialog.showSaveDialog(mainWindow, {
+        title: 'Save Diagram',
+        defaultPath: 'diagram.apdu',
+        filters: options?.filters || [
+            { name: 'APDU Diagram', extensions: ['apdu'] },
+            { name: 'JSON Files', extensions: ['json'] },
+            { name: 'All Files', extensions: ['*'] }
+        ]
+    });
+    return result;
+});
+
+// 다이어그램 열기 대화상자
+ipcMain.handle('dialog:openFile', async (event, options) => {
+    const result = await dialog.showOpenDialog(mainWindow, {
+        title: 'Open Diagram',
+        filters: options?.filters || [
+            { name: 'APDU Diagram', extensions: ['apdu'] },
+            { name: 'JSON Files', extensions: ['json'] },
+            { name: 'All Files', extensions: ['*'] }
+        ],
+        properties: ['openFile']
+    });
+    return result;
+});
+
+// 다이어그램 파일 저장
+ipcMain.handle('save-diagram', async (event, { filePath, jsonData }) => {
+    try {
+        console.log('[ELECTRON] save-diagram handler called');
+        console.log('[ELECTRON] filePath:', filePath);
+        console.log('[ELECTRON] jsonData type:', typeof jsonData);
+        console.log('[ELECTRON] jsonData length:', jsonData?.length);
+        console.log('[ELECTRON] jsonData preview:', jsonData?.substring(0, 100));
+
+        if (!jsonData) {
+            throw new Error('jsonData is undefined or null');
+        }
+
+        await fs.writeFile(filePath, jsonData, 'utf-8');
+        console.log('[ELECTRON] File saved successfully');
+        return { success: true };
+    } catch (error) {
+        console.error('[ELECTRON] Failed to save diagram:', error);
+        throw error;
+    }
+});
+
+// 다이어그램 파일 로드
+ipcMain.handle('load-diagram', async (event, filePath) => {
+    try {
+        const data = await fs.readFile(filePath, 'utf-8');
+        return data;
+    } catch (error) {
+        console.error('Failed to load diagram:', error);
+        throw error;
+    }
+});

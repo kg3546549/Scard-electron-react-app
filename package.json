@@ -26,6 +26,7 @@
     "react-icons": "^5.4.0",
     "react-router-dom": "^7.1.3",
     "react-scripts": "5.0.1",
+    "reactflow": "^11.11.4",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
     "typescript": "^4.4.2",
@@ -38,9 +39,14 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "react-start": "set BROWSER=none && yarn start",
-    "electron-start": "set ELECTRON_START_URL=http://localhost:3000 && electron .",
-    "electron-pack": "yarn build && electron-builder build -c.extraMetadata.main=build/Main.js",
+    "react-start": "cross-env BROWSER=none react-scripts start",
+    "electron-start": "cross-env ELECTRON_START_URL=http://localhost:3000 electron .",
+    "dev": "concurrently \"yarn react-start\" \"wait-on http://localhost:3000 && yarn electron-start\" -n \"REACT,ELECTRON\" -c \"blue,green\"",
+    "build:react": "react-scripts build",
+    "build:electron": "electron-builder build -c.extraMetadata.main=build/Main.js",
+    "build:exe": "yarn build:react && electron-builder build --win --x64 -c.extraMetadata.main=build/Main.js",
+    "build:installer": "yarn build:react && electron-builder build --win --x64 -c.extraMetadata.main=build/Main.js -c.nsis.oneClick=false",
+    "build:all": "yarn build:react && electron-builder build --win --x64 -c.extraMetadata.main=build/Main.js -c.nsis.oneClick=false",
     "remove-protocols": "yarn remove @scard/protocols",
     "add-protocols": "yarn add file:./Protocols"
   },
@@ -64,8 +70,49 @@
   },
   "main": "public/Main.js",
   "homepage": "./",
+  "build": {
+    "appId": "com.scard.pcsc-client",
+    "productName": "CARD Tools",
+    "directories": {
+      "buildResources": "public",
+      "output": "dist"
+    },
+    "files": [
+      "build/**/*",
+      "public/Main.js",
+      "node_modules/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "public/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "CARD Tools"
+    }
+  },
   "devDependencies": {
+    "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
     "electron": "^34.0.0",
-    "electron-builder": "^25.1.8"
+    "electron-builder": "^25.1.8",
+    "wait-on": "^9.0.3"
   }
 }

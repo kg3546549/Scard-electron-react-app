@@ -1,19 +1,20 @@
-export {};
+/**
+ * Global Type Declarations
+ * Electron IPC 타입 선언
+ */
+
+interface ElectronAPI {
+  ipcRenderer: {
+    send: (channel: string, data: any) => void;
+    on: (channel: string, func: (...args: any[]) => void) => void;
+    invoke: (channel: string, ...args: any[]) => Promise<any>;
+  };
+}
 
 declare global {
   interface Window {
-    api: {
-      reader: (e:ProtocolData) => Promise<ProtocolData>;
-      socket: (e:string[]) => Promise<string[]>;
-    };
-
-    electron: {
-      ipcRenderer: {
-        send: (channel: string, data: any) => void;
-        invoke: (channel: string, data: any) => Promise<any>;
-        on: (channel: string, listener: (...args: any[]) => void) => void;
-        off: (channel: string, listener: (...args: any[]) => void) => void;
-      };
-    };
+    electron: ElectronAPI;
   }
 }
+
+export { };

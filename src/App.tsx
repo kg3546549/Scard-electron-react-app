@@ -1,36 +1,37 @@
-import React, {useState, useEffect} from 'react';
+/**
+ * App Component
+ * 애플리케이션 진입점
+ */
 
-
-import './App.css';
-import { 
-  ChakraProvider, 
-  Button, 
-  Box, 
-  Card, CardHeader, CardBody, CardFooter,
-  Heading, GridItem,
-  Text
-} from '@chakra-ui/react'
-
-// import {Command, Sender, Result, ProtocolData} from "@scard/protocols/ReaderRequest"
- 
-import Sidebar from './Views/Sidebar';
-// import {MainView} from './Views/MainView';
-import { BrowserRouter } from 'react-router-dom';
-
+import React from 'react';
+import { ChakraProvider } from '@chakra-ui/react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AppLayout } from './components/layout';
+import {
+  MifareReadingPage,
+  ISO7816TransmitPage,
+  ISO7816DiagramPage,
+  DriverTestPage,
+  SettingsPage,
+} from './pages';
 
 function App() {
-
-  //TODO : Rendering 되면 ipcRenderer 통해서 Background Process 실행 요청, 성공 시에 응답 후 Socket Connection까지 여기서 하도록.
-  
-
   return (
     <ChakraProvider>
       <BrowserRouter>
-        <Sidebar/>
+        <Routes>
+          <Route path="/" element={<AppLayout />}>
+            <Route index element={<Navigate to="/mifare" replace />} />
+            <Route path="mifare" element={<MifareReadingPage />} />
+            <Route path="iso7816" element={<ISO7816TransmitPage />} />
+            <Route path="diagram" element={<ISO7816DiagramPage />} />
+            <Route path="driver-test" element={<DriverTestPage />} />
+            <Route path="settings" element={<SettingsPage />} />
+          </Route>
+        </Routes>
       </BrowserRouter>
     </ChakraProvider>
   );
 }
 
 export default App;
-
