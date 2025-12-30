@@ -21,9 +21,12 @@ export class DiagramService {
     private iso7816Service: ISO7816Service;
     private nodeExecutor: NodeExecutor;
 
-    constructor() {
-        this.iso7816Service = new ISO7816Service();
-        this.nodeExecutor = new NodeExecutor(this.iso7816Service);
+    constructor(
+        iso7816Service: ISO7816Service = new ISO7816Service(),
+        nodeExecutor?: NodeExecutor
+    ) {
+        this.iso7816Service = iso7816Service;
+        this.nodeExecutor = nodeExecutor ?? new NodeExecutor(this.iso7816Service);
     }
 
     /**
@@ -182,6 +185,14 @@ export class DiagramService {
         const previousNodes = new Map<string, DiagramNode>();
 
         try {
+            // 카드 연결을 한 번 보장해 APDU 실행 실패를 방지
+            try {
+                await this.iso7816Service.connectCard();
+            } catch (error) {
+                this.executionStatus = DiagramExecutionStatus.ERROR;
+                throw new Error(`Failed to connect card before execution: ${(error as Error).message}`);
+            }
+
             // 실행 순서 결정 (토폴로지 정렬)
             const executionOrder = this.getExecutionOrder();
 

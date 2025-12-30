@@ -19,29 +19,18 @@ export class MifareService {
      */
     async detectCard(): Promise<CardInfo> {
         try {
-            // PCSC 연결 확인
+            // PCSC 연결 확인 및 컨텍스트/리더/카드 연결
             if (!pcscService.isConnected()) {
                 await pcscService.connect();
-                await this.delay(100);
             }
-
-            // Context 설정
             await pcscService.establishContext();
-            await this.delay(100);
-
-            // 리더 목록 조회
             await pcscService.getReaderList();
-            await this.delay(100);
-
-            // 카드 연결
             await pcscService.connectCard();
-            await this.delay(100);
 
             // ATR 조회
             const atr = await pcscService.getATR();
-            await this.delay(100);
 
-            // UID 조회
+            // UID 조회 (APDU 기반)
             const uid = await pcscService.getMifareUID();
 
             const cardInfo: CardInfo = {
@@ -63,29 +52,48 @@ export class MifareService {
      */
     async readSectors(sectorNumbers: number[], keyConfig: MifareKeyConfig): Promise<void> {
         try {
+            // 키 로드 (slot 0 사용)
+            await pcscService.loadMifareKey(keyConfig.keyValue);
+            await this.delay(1);
+
             for (const sectorNumber of sectorNumbers) {
-                // 키 로드
-                await pcscService.loadMifareKey(keyConfig.keyValue);
-                await this.delay(100);
-
-                // 인증
                 const blockNumber = sectorNumber * 4;
-                await pcscService.authenticateMifare(String(blockNumber), keyConfig.keyType);
-                await this.delay(100);
 
-                // 섹터 인증 상태 업데이트
-                this.card.setSectorAuthenticated(sectorNumber, true);
+                try {
+                    // 인증
+                    const authResp = await pcscService.authenticateMifare(String(blockNumber), keyConfig.keyType);
+                    await this.delay(1);
+                    const authSw = this.extractStatusWord(authResp);
+                    if (authSw && authSw !== '9000') {
+                        throw new Error(`AUTH failed (SW=${authSw})`);
+                    }
 
-                // 4개 블록 읽기
-                const blocks: string[] = [];
-                for (let i = 0; i < 4; i++) {
-                    const data = await pcscService.readMifareBlock(String(blockNumber + i));
-                    blocks.push(data.substring(0, 32)); // 16바이트 = 32자리 hex
-                    await this.delay(200);
+                    // 섹터 인증 상태 업데이트
+                    this.card.setSectorAuthenticated(sectorNumber, true);
+
+                    // 4개 블록 읽기
+                    const blocks: string[] = [];
+                    for (let i = 0; i < 4; i++) {
+                        const raw = await pcscService.readMifareBlock(String(blockNumber + i));
+                        await this.delay(1);
+                        const sw = this.extractStatusWord(raw);
+                        if (sw && sw !== '9000') {
+                            throw new Error(`READ failed at block ${blockNumber + i} (SW=${sw})`);
+                        }
+                        const trimmed = this.stripStatusWord(raw).substring(0, 32);
+                        blocks.push(trimmed);
+                    }
+
+                    // 섹터 데이터 업데이트
+                    this.card.setSectorData(sectorNumber, blocks);
+                } catch (err) {
+                    const reason = (err as Error).message || 'Unknown error';
+                    this.card.setSectorError(sectorNumber, reason);
+                    throw err;
                 }
 
-                // 섹터 데이터 업데이트
-                this.card.setSectorData(sectorNumber, blocks);
+                // 섹터 간 딜레이
+                await this.delay(5);
             }
         } catch (error) {
             console.error('Failed to read sectors:', error);
@@ -100,22 +108,30 @@ export class MifareService {
         try {
             // 키 로드
             await pcscService.loadMifareKey(keyConfig.keyValue);
-            await this.delay(100);
 
             // 인증
             const blockNumber = sectorNumber * 4;
-            await pcscService.authenticateMifare(String(blockNumber), keyConfig.keyType);
-            await this.delay(100);
+            const authResp = await pcscService.authenticateMifare(String(blockNumber), keyConfig.keyType);
+            const authSw = this.extractStatusWord(authResp);
+            if (authSw && authSw !== '9000') {
+                throw new Error(`AUTH failed (SW=${authSw})`);
+            }
 
             // 블록 읽기
             const absoluteBlockNumber = sectorNumber * 4 + blockIndex;
-            const data = await pcscService.readMifareBlock(String(absoluteBlockNumber));
+            const raw = await pcscService.readMifareBlock(String(absoluteBlockNumber));
+            const sw = this.extractStatusWord(raw);
+            if (sw && sw !== '9000') {
+                throw new Error(`READ failed (SW=${sw})`);
+            }
+            const data = this.stripStatusWord(raw).substring(0, 32);
 
             // 카드 모델 업데이트
-            this.card.setBlockData(sectorNumber, blockIndex, data.substring(0, 32));
+            this.card.setBlockData(sectorNumber, blockIndex, data);
 
-            return data.substring(0, 32);
+            return data;
         } catch (error) {
+            this.card.setSectorError(sectorNumber, (error as Error).message || 'Read failed');
             console.error('Failed to read block:', error);
             throw error;
         }
@@ -133,12 +149,10 @@ export class MifareService {
         try {
             // 키 로드
             await pcscService.loadMifareKey(keyConfig.keyValue);
-            await this.delay(100);
 
             // 인증
             const blockNumber = sectorNumber * 4;
             await pcscService.authenticateMifare(String(blockNumber), keyConfig.keyType);
-            await this.delay(100);
 
             // 블록 쓰기
             const absoluteBlockNumber = sectorNumber * 4 + blockIndex;
@@ -171,5 +185,27 @@ export class MifareService {
      */
     private delay(ms: number): Promise<void> {
         return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    /**
+     * APDU 응답에서 상태코드(마지막 4자리)를 제거
+     */
+    private stripStatusWord(apduResponse: string): string {
+        const clean = apduResponse.toUpperCase();
+        if (clean.length >= 4) {
+            return clean.slice(0, -4);
+        }
+        return clean;
+    }
+
+    /**
+     * APDU 응답의 상태코드 추출 (마지막 4자리)
+     */
+    private extractStatusWord(apduResponse: string): string {
+        const clean = apduResponse.toUpperCase();
+        if (clean.length >= 4) {
+            return clean.slice(-4);
+        }
+        return '';
     }
 }

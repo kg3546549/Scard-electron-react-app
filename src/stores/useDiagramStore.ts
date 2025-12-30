@@ -67,6 +67,9 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
                 set({ currentDiagram: diagramData, error: null });
             } else {
                 // Open file dialog via Electron IPC
+                if (!window.electron?.ipcRenderer) {
+                    throw new Error('Electron IPC not available for loading diagram');
+                }
                 const result = await window.electron.ipcRenderer.invoke('dialog:openFile', {
                     filters: [{ name: 'Diagram Files', extensions: ['apdu'] }]
                 });
@@ -88,6 +91,9 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
                 await service.saveDiagram(filePath);
             } else {
                 // Open save dialog via Electron IPC
+                if (!window.electron?.ipcRenderer) {
+                    throw new Error('Electron IPC not available for saving diagram');
+                }
                 const result = await window.electron.ipcRenderer.invoke('dialog:saveFile', {
                     filters: [
                         { name: 'APDU Diagram', extensions: ['apdu'] },

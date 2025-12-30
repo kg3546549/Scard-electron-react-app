@@ -1,34 +1,62 @@
-const {app, BrowserWindow, ipcMain, session} = require('electron');
-
+const {app, BrowserWindow, ipcMain, session, dialog} = require('electron');
 const { spawn } = require('child_process');
-
 const path = require('path');
 const url = require('url');
-const net = require('net');
-const {Command, Sender, Result} = require('@scard/protocols/ReaderRequest');
-const { electron } = require('process');
 const windowStateKeeper = require('electron-window-state');
+const fs = require('fs').promises;
 
-const client = new net.Socket();
-let clientStatus = false
-
-
-//Electron Reload
-require('electron-reload')(__dirname, {
-    electron: require(`${__dirname}/../node_modules/electron`)
-});
+//Electron Reload (disabled for now to avoid module loading issues)
+// require('electron-reload')(__dirname, {
+//     electron: require(`${__dirname}/../node_modules/electron`)
+// });
 
 let mainWindow;
+let driverProcess = null;
+let driverReady = false;
+const pendingRequests = new Map(); // uuid -> {resolve, reject, timeout}
+let lastDriverStatus = null;
 
+// Command enum (matching driver protocol)
+const Command = {
+    Cmd_Err: 0,
 
-//Notebook reactDevToolsPath
-// const reactDevToolsPath = path.join(
-//     'C:/Users/S1SECOM/AppData/Local/Google/Chrome/User Data/Default/Extensions/fmkadmapgofadopljbjfkapdkoienihi/6.1.1_0'
-// )
+    // Socket Commands (not used in stdio mode)
+    Cmd_Socket_Execute: 10,
+    Cmd_Socket_Connect: 11,
+    Cmd_Socket_Disconnect: 12,
 
+    // SCard Commands
+    Cmd_SCard_Establish_Context: 101,
+    Cmd_Scard_Release_Context: 1001,
+    Cmd_SCard_Reader_List: 102,
+    Cmd_SCard_Connect_Card: 103,
+    Cmd_SCard_Disconnect_Card: 104,
+    Cmd_SCard_Transmit: 105,
+    Cmd_SCard_GetATR: 106,
+
+    // Mifare Commands
+    Cmd_MI_Get_UID: 201,
+    Cmd_MI_Load_Key: 202,
+    Cmd_MI_Authentication: 203,
+    Cmd_MI_Read_Block: 204,
+    Cmd_MI_Write_Block: 205,
+    Cmd_MI_Decrement: 206,
+    Cmd_MI_Increment: 207,
+    Cmd_MI_Restore: 208,
+    Cmd_MI_HALT: 209,
+};
+
+const Sender = {
+    Request: 10,
+    Response: 20,
+};
+
+const Result = {
+    Success: 0,
+    Fail: 99,
+};
 
 function createWindow() {
-    //위치 저장
     let mainWindowState = windowStateKeeper({
         defaultWidth: 800,
         defaultHeight: 600
@@ -37,439 +65,366 @@ function createWindow() {
     mainWindow = new BrowserWindow({
         x: mainWindowState.x,
         y: mainWindowState.y,
-        width:1300,
-        height:800,
-        webPreferences : {
+        width: 1300,
+        height: 800,
+        webPreferences: {
             preload: path.join(__dirname, "../src/preload.js"),
-            // nodeIntegration: true,
-            // contextIsolation: false,
-            
-            
         },
         autoHideMenuBar: true,
-        
     });
 
-    /*
-    * ELECTRON_START_URL을 직접 제공할경우 해당 URL을 로드합니다.
-    * 만일 URL을 따로 지정하지 않을경우 (프로덕션빌드) React 앱이
-    * 빌드되는 build 폴더의 index.html 파일을 로드합니다.
-    * */
     const startUrl = process.env.ELECTRON_START_URL || url.format({
         pathname: path.join(__dirname, '/../public/index.html'),
         protocol: 'file:',
         slashes: true
     });
+
     console.log(`START URL : ${startUrl}`);
-    /*
-    * startUrl에 배정되는 url을 맨 위에서 생성한 BrowserWindow에서 실행시킵니다.
-    * */
-
     mainWindow.loadURL(startUrl);
-
     mainWindowState.manage(mainWindow);
-}
 
-
-//DevTools
-// app.whenReady().then(async () => {
-//     await session.defaultSession.loadExtension(reactDevToolsPath)
-// });
-
-app.on('ready', createWindow);
-
-
-client.on('close', () => {
-    console.log("socket Closed");
-    clientStatus = false;
-});
-
-client.on('error', (err)=> {
-
-    console.log("socket Error Occured");
-    clientStatus = false;
-
-    mainWindow.webContents.send('channel', responseData);
-})
-
-client.on('data', (data)=> {
-    console.log("Socket Data Received!");
-    console.log(data);
-    const json = JSON.parse( data.toString('utf-8') );
-
-    let result = json["result"]==99?"Fail":"Success";
-    console.log(`Result : ${result}`);
-
-    console.log(json);
-
-    mainWindow.webContents.send('channel', json);
-
-})
-
-function ReaderControl(cmd,uuid,data) {
-    let responseData = {
-        cmd: cmd,
-        sender: Sender.Response,
-        msgCnt: 1,
-        uuid: uuid,
-        result: Result.Default_Fail,
-        dataLength: 0,
-        data: [],
-    }
-
-    switch(cmd) {
-        
-        case Command.Cmd_Socket_Connect :{
-            if( clientStatus == false ) {
-                client.connect(12345,'127.0.0.1', ()=>{
-                    console.log("Socket Connection Success")
-                    clientStatus = true;
-                    responseData.data.push("Socket Connection Success");
-                    responseData.result = Result.Success;
-
-                    console.log(responseData);
-                    mainWindow.webContents.send('channel', responseData);
-                });
-            }
-            else {
-                console.log("Socket is Already Connected");
-                responseData.result = Result.Default_Fail;
-                responseData.data.push("Socket is Already Connected");
-
-                console.log(responseData);
-                mainWindow.webContents.send('channel', responseData);
-            }
-
-            
-        }
-        break;
-
-        case Command.Cmd_Socket_Disconnect : {
-            if( clientStatus == true ) {
-                client.destroy();
-                clientStatus = false;
-                console.log("Socket Close Success");
-
-                responseData.data.push("Socket Close Success");
-                responseData.result = Result.Success;
-            }
-            else {
-                console.log("Socket is not Connected");
-
-                responseData.result = Result.Default_Fail;
-                responseData.data.push("Socket is not Connected");
-            }
-            console.log(responseData);
-            mainWindow.webContents.send('channel', responseData);
-        }
-        break;
-
-
-        case Command.Cmd_SCard_Establish_Context : 
-        case Command.Cmd_SCard_Reader_List : 
-        case Command.Cmd_SCard_Connect_Card : 
-        case Command.Cmd_MI_Get_UID:         
-        {
-            if( clientStatus == false ) {
-                console.log("Socket is not connect");
-                break;
-            }
-
-            let requestCmd = {
-                "cmd": cmd,
-                "sender": Sender.Request,
-                "msgCnt": 1,
-                "uuid" : uuid,
-                "result": Result.Default_Fail,
-                "dataLength": 0,
-                "data": []
-            }
-
-            let requestJson = JSON.stringify(requestCmd);
-            
-            client.write(requestJson);
-        }
-        break;
-        case Command.Cmd_MI_Load_Key : {
-            if( clientStatus == false ) {
-                console.log("Socket is not connect");
-                break;
-            }
-
-            let requestCmd = {
-                "cmd": cmd,
-                "sender": Sender.Request,
-                "msgCnt": 1,
-                "uuid" : uuid,
-                "result": Result.Default_Fail,
-                "dataLength": 0,
-                "data": ['A', 'FFFFFFFFFFFF']
-            }
-
-            let requestJson = JSON.stringify(requestCmd);
-            client.write(requestJson);
-        }
-        break;
-        case Command.Cmd_MI_Authentication : {
-            if( clientStatus == false ) {
-                console.log("Socket is not connect");
-                break;
-            }
-
-            let requestCmd = {
-                "cmd": cmd,
-                "sender": Sender.Request,
-                "msgCnt": 1,
-                "uuid" : uuid,
-                "result": Result.Default_Fail,
-                "dataLength": 0,
-                "data": data
-            }
-
-            let requestJson = JSON.stringify(requestCmd);
-            
-            client.write(requestJson);
-        }
-
-        break;
-        case Command.Cmd_MI_Read_Block : {
-            if( clientStatus == false ) {
-                console.log("Socket is not connect");
-                break;
-            }
-
-            let requestCmd = {
-                "cmd": cmd,
-                "sender": Sender.Request,
-                "msgCnt": 1,
-                "uuid" : uuid,
-                "result": Result.Default_Fail,
-                "dataLength": 0,
-                "data": data
-            }
-
-            let requestJson = JSON.stringify(requestCmd);
-            
-            client.write(requestJson);
-        }
-        break;
+    // 창 생성 이후 최근 드라이버 상태를 한 번 더 전달
+    if (lastDriverStatus) {
+        mainWindow.webContents.send('driver-status', lastDriverStatus);
     }
 }
-
-//channel에는 cmd:number타입 하나만 받아서 이렇게 해놓은 듯....
-/*
-cmd = {
-    cmd:Command
-    uuid:string
-}
-*/
-ipcMain.on("channel", (event, cmd) => {
-    console.log(":: From Renderer Process ::", cmd);
-    // event.sender.send("channel", "From Main Process"+data);
-    console.log("clientStatus : " + clientStatus);
-    console.log("cmd : ",cmd);
-
-    ReaderControl(cmd.cmd, cmd.uuid,[]);
-});
-
-function delay(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-ipcMain.on("action", async (event, cmd) => {
-    switch(cmd[0]) {
-        case "ReadBlockBtn" : {
-            let sector = parseInt(cmd[1]);
-            console.log("read block : ");
-            console.log("Authentication sector : " + `${0+(sector*4)}`);
-            ReaderControl( Command.Cmd_MI_Authentication, [`${0+(sector*4)}`, 'A'], client );
-            await delay(5);
-
-            for(let i=0;i<4;i++) {
-                console.log([`${i+(sector*4)}`]);
-                ReaderControl( Command.Cmd_MI_Read_Block, [`${i+(sector*4)}`], client );
-                await delay(5);
-            }
-
-        }
-        break;
-
-    }
-})
-
-
-//background Process 실행
-// const exePath = __dirname+"/../winscard-driver/winscard-pcsc.exe";
-// const args = ['arg1', 'arg2'];
-// const child = spawn(exePath, args);
-
 
 /**
- * @description IPC Listener to Renderer Process
- * @param requestData : ProtocolData
+ * Spawn winscard-pcsc.exe driver process
  */
-ipcMain.on("requestChannel", async (event, requestData) => {
+function spawnDriverProcess() {
+    const driverPath = path.join(__dirname, '../winscard-driver/winscard-pcsc.exe');
 
-    console.log(":: IPC request Channel ::");
-    console.log(requestData);
+    console.log('[DRIVER] Spawning driver process:', driverPath);
 
-    let responseData = {
-        cmd: requestData.cmd,
-        sender: Sender.Response,
-        msgCnt: 1,
-        uuid: requestData.uuid,
-        result: Result.Default_Fail,
-        dataLength: 0,
-        data: [],
-    }
+    driverProcess = spawn(driverPath, [], {
+        stdio: ['pipe', 'pipe', 'pipe']
+    });
 
-    switch(requestData.cmd) {
-        case Command.Cmd_Socket_Execute: {
-            console.log("Execute");
-            
+    // Handle stdout (driver responses)
+    let buffer = '';
+    driverProcess.stdout.on('data', (data) => {
+        buffer += data.toString('utf-8');
 
-            return;
-        }
-        break;
+        // Process complete lines
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || ''; // Keep incomplete line in buffer
 
-        case Command.Cmd_Socket_Connect :{
-            if( clientStatus == false ) {
-                client.connect(12345,'127.0.0.1', ()=>{
-                    console.log("Socket Connection Success")
-                    clientStatus = true;
-                    responseData.data.push("Socket Connection Success");
-                    responseData.result = Result.Success;
-
-                    console.log(responseData);
-                    mainWindow.webContents.send('channel', responseData);
-                });
+        lines.forEach(line => {
+            line = line.trim();
+            if (line) {
+                try {
+                    const response = JSON.parse(line);
+                    console.log('[DRIVER] Response received:', response);
+                    handleDriverResponse(response);
+                } catch (err) {
+                    console.error('[DRIVER] Failed to parse response:', line, err);
+                }
             }
-            else {
-                console.log("Socket is Already Connected");
-                responseData.result = Result.Default_Fail;
-                responseData.data.push("Socket is Already Connected");
-
-                console.log(responseData);
-                mainWindow.webContents.send('channel', responseData);
-            }
-
-            
-        }
-        break;
-
-        case Command.Cmd_Socket_Disconnect : {
-            if( clientStatus == true ) {
-                client.destroy();
-                clientStatus = false;
-                console.log("Socket Close Success");
-
-                responseData.data.push("Socket Close Success");
-                responseData.result = Result.Success;
-            }
-            else {
-                console.log("Socket is not Connected");
-
-                responseData.result = Result.Default_Fail;
-                responseData.data.push("Socket is not Connected");
-            }
-            console.log(responseData);
-            mainWindow.webContents.send('channel', responseData);
-        }
-        break;
-
-
-
-        case Command.Cmd_SCard_Establish_Context :
-        case Command.Cmd_SCard_Reader_List :
-        case Command.Cmd_SCard_Connect_Card :
-        case Command.Cmd_Scard_Release_Context :
-        case Command.Cmd_SCard_Transmit :
-        case Command.Cmd_MI_Get_UID :
-        default :
-        {
-            if(clientStatus == false) {
-                responseData.data.push("Socket is not connected");
-                mainWindow.webContents.send('channel', responseData);
-                return;
-            }
-            console.log("  - request to background process");
-            requestJSON = JSON.stringify(requestData)
-            client.write(requestJSON);
-        }
-        break;
-    }
-    
-
-});
-
-
-
-ipcMain.handle("reader", async (e, data) => {
-    console.log(":: ipcMain - reader ::");
-    // console.log(e);
-    console.log(data);
-    return ["TEST!!"+data];
-});
-
-
-const connectToServer = (port, host) => {
-    return new Promise((resolve, reject) => {
-        client.connect(port, host, () => {
-        console.log('Socket Connection Success');
-        clientStatus = true;
-        resolve(); // 연결 성공 시 resolve
-        });
-
-        client.on('error', (err) => {
-        console.error('Connection Error:', err);
-        reject(err); // 오류 발생 시 reject
         });
     });
-};
 
-ipcMain.handle("socket", async (e, data) => {
+    // Handle stderr
+    driverProcess.stderr.on('data', (data) => {
+        console.error('[DRIVER] stderr:', data.toString());
+    });
 
-    switch (data[0]) {
-        case "connect" : {
-            if( clientStatus == false ) {
-                await connectToServer(12345, "127.0.0.1");
-                return ["Success"]
-            }
-            else {
-                console.log("Socket is Already Connected");
-                return ["Fail"];
-            }
+    // Handle process exit
+    driverProcess.on('exit', (code) => {
+        console.log(`[DRIVER] Process exited with code ${code}`);
+        driverReady = false;
+
+        // Notify renderer that driver stopped
+        const statusPayload = {
+            status: 'STOPPED',
+            message: `Driver process exited with code ${code}`
+        };
+        lastDriverStatus = statusPayload;
+        if (mainWindow) {
+            mainWindow.webContents.send('driver-status', statusPayload);
         }
-        break;
 
-        case "disconnect" : {
-            if( clientStatus == true ) {
-                client.destroy();
-                clientStatus = false;
-                console.log("Socket Close Success");
+        // Reject all pending requests
+        pendingRequests.forEach(({reject}) => {
+            reject(new Error('Driver process exited'));
+        });
+        pendingRequests.clear();
+    });
 
-                return ["Success"];
-            }
-            else {
-                console.log("Socket is not Connected");
+    // Handle process errors
+    driverProcess.on('error', (err) => {
+        console.error('[DRIVER] Process error:', err);
+        driverReady = false;
+    });
 
-                return ["Fail"];
-            }
+    driverReady = true;
+    console.log('[DRIVER] Driver process spawned successfully');
+
+    // Notify renderer that driver is ready
+    setTimeout(() => {
+        const statusPayload = {
+            status: 'RUNNING',
+            message: 'Driver process is running'
+        };
+        lastDriverStatus = statusPayload;
+        if (mainWindow) {
+            mainWindow.webContents.send('driver-status', statusPayload);
         }
-        break;
+    }, 100);
+}
 
-        default : {
-            return ["error"]
+/**
+ * Send command to driver via stdin
+ */
+function sendDriverCommand(cmd, additionalFields = {}, uuid = null) {
+    return new Promise((resolve, reject) => {
+        if (!driverProcess || !driverReady) {
+            return reject(new Error('Driver process not ready'));
         }
-        break;
+
+        const requestUuid = uuid || generateUUID();
+        const request = {
+            cmd,
+            msgCnt: 1,
+            sender: Sender.Request,
+            uuid: requestUuid,  // UUID를 요청에 포함
+            ...additionalFields
+        };
+
+        // Set timeout
+        const timeoutId = setTimeout(() => {
+            pendingRequests.delete(requestUuid);
+            reject(new Error(`Command timeout: ${cmd}`));
+        }, 10000);
+
+        // Store request
+        pendingRequests.set(requestUuid, {
+            resolve,
+            reject,
+            timeout: timeoutId,
+            cmd
+        });
+
+        // Send to driver
+        const requestLine = JSON.stringify(request) + '\n';
+        console.log('[DRIVER] Sending command:', request);
+        driverProcess.stdin.write(requestLine);
+    });
+}
+
+/**
+ * Handle driver response
+ */
+function handleDriverResponse(response) {
+    let patchedResponse = { ...response };
+
+    // Driver may omit uuid; try to match pending request by command
+    if (!patchedResponse.uuid) {
+        const pendingEntry = [...pendingRequests.entries()].find(
+            ([, pending]) => pending.cmd === patchedResponse.cmd
+        );
+        if (pendingEntry) {
+            patchedResponse.uuid = pendingEntry[0];
+        }
     }
-})
 
-// Diagram 파일 저장/로드 핸들러
-const { dialog } = require('electron');
-const fs = require('fs').promises;
+    // Handle UUID-tracked requests
+    const pending = patchedResponse.uuid ? pendingRequests.get(patchedResponse.uuid) : undefined;
+    if (pending) {
+        clearTimeout(pending.timeout);
+        pendingRequests.delete(patchedResponse.uuid);
 
-// 다이어그램 저장 대화상자
+        if (patchedResponse.result === Result.Success) {
+            pending.resolve(patchedResponse);
+        } else {
+            const errorMsg = patchedResponse.data && patchedResponse.data[0] ? patchedResponse.data[0] : 'Command failed';
+            pending.reject(new Error(errorMsg));
+        }
+    }
+
+    // Also forward to renderer
+    if (mainWindow) {
+        mainWindow.webContents.send('channel', patchedResponse);
+    }
+}
+
+/**
+ * Generate UUID
+ */
+function generateUUID() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+}
+
+// App lifecycle
+app.on('ready', () => {
+    spawnDriverProcess();
+    setTimeout(createWindow, 500); // Give driver a moment to start
+});
+
+app.on('before-quit', () => {
+    console.log('[DRIVER] Terminating driver process');
+    if (driverProcess) {
+        driverProcess.kill();
+    }
+});
+
+app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') {
+        app.quit();
+    }
+});
+
+// IPC Handlers for renderer process
+ipcMain.on('requestChannel', async (event, requestData) => {
+    // console.log('[IPC] Request received:', requestData);
+
+    try {
+        let response;
+
+        switch(requestData.cmd) {
+            case Command.Cmd_SCard_Establish_Context:
+                response = await sendDriverCommand(Command.Cmd_SCard_Establish_Context, {}, requestData.uuid);
+                break;
+
+            case Command.Cmd_Scard_Release_Context:
+                response = await sendDriverCommand(Command.Cmd_Scard_Release_Context, {}, requestData.uuid);
+                break;
+
+            case Command.Cmd_SCard_Reader_List:
+                response = await sendDriverCommand(Command.Cmd_SCard_Reader_List, {}, requestData.uuid);
+                break;
+
+            case Command.Cmd_SCard_Connect_Card:
+                response = await sendDriverCommand(Command.Cmd_SCard_Connect_Card, {
+                    readerNum: requestData.readerNum || 0
+                }, requestData.uuid);
+                break;
+
+            case Command.Cmd_SCard_Disconnect_Card:
+                response = await sendDriverCommand(Command.Cmd_SCard_Disconnect_Card, {}, requestData.uuid);
+                break;
+
+            case Command.Cmd_SCard_GetATR:
+                response = await sendDriverCommand(Command.Cmd_SCard_GetATR, {
+                    readerNum: requestData.readerNum || 0
+                }, requestData.uuid);
+                break;
+
+            case Command.Cmd_SCard_Transmit:
+                if (!requestData.data || requestData.data.length === 0) {
+                    throw new Error('APDU data is required for Transmit command');
+                }
+                response = await sendDriverCommand(Command.Cmd_SCard_Transmit, {
+                    apdu: requestData.data[0]
+                }, requestData.uuid);
+                break;
+
+            // Mifare Commands
+            case Command.Cmd_MI_Get_UID:
+                response = await sendDriverCommand(Command.Cmd_MI_Get_UID, {}, requestData.uuid);
+                break;
+
+            case Command.Cmd_MI_Load_Key:
+                if (!requestData.data || requestData.data.length === 0) {
+                    throw new Error('Key data is required for Load Key command');
+                }
+                response = await sendDriverCommand(Command.Cmd_MI_Load_Key, {
+                    keyType: requestData.data[0] || 'A',
+                    key: requestData.data[1] || 'FFFFFFFFFFFF'
+                }, requestData.uuid);
+                break;
+
+            case Command.Cmd_MI_Authentication:
+                if (!requestData.data || requestData.data.length < 2) {
+                    throw new Error('Block number and key type are required for Authentication command');
+                }
+                response = await sendDriverCommand(Command.Cmd_MI_Authentication, {
+                    blockNumber: requestData.data[0],
+                    keyType: requestData.data[1]
+                }, requestData.uuid);
+                break;
+
+            case Command.Cmd_MI_Read_Block:
+                if (!requestData.data || requestData.data.length === 0) {
+                    throw new Error('Block number is required for Read Block command');
+                }
+                response = await sendDriverCommand(Command.Cmd_MI_Read_Block, {
+                    blockNumber: requestData.data[0]
+                }, requestData.uuid);
+                break;
+
+            case Command.Cmd_MI_Write_Block:
+                if (!requestData.data || requestData.data.length < 2) {
+                    throw new Error('Block number and data are required for Write Block command');
+                }
+                response = await sendDriverCommand(Command.Cmd_MI_Write_Block, {
+                    blockNumber: requestData.data[0],
+                    data: requestData.data[1]
+                }, requestData.uuid);
+                break;
+
+            case Command.Cmd_MI_Decrement:
+                if (!requestData.data || requestData.data.length < 2) {
+                    throw new Error('Block number and value are required for Decrement command');
+                }
+                response = await sendDriverCommand(Command.Cmd_MI_Decrement, {
+                    blockNumber: requestData.data[0],
+                    value: requestData.data[1]
+                }, requestData.uuid);
+                break;
+
+            case Command.Cmd_MI_Increment:
+                if (!requestData.data || requestData.data.length < 2) {
+                    throw new Error('Block number and value are required for Increment command');
+                }
+                response = await sendDriverCommand(Command.Cmd_MI_Increment, {
+                    blockNumber: requestData.data[0],
+                    value: requestData.data[1]
+                }, requestData.uuid);
+                break;
+
+            case Command.Cmd_MI_Restore:
+                if (!requestData.data || requestData.data.length === 0) {
+                    throw new Error('Block number is required for Restore command');
+                }
+                response = await sendDriverCommand(Command.Cmd_MI_Restore, {
+                    blockNumber: requestData.data[0]
+                }, requestData.uuid);
+                break;
+
+            case Command.Cmd_MI_HALT:
+                response = await sendDriverCommand(Command.Cmd_MI_HALT, {}, requestData.uuid);
+                break;
+
+            default:
+                throw new Error(`Unknown command: ${requestData.cmd}`);
+        }
+
+        // console.log('[IPC] Command succeeded:', response);
+
+    } catch (error) {
+        // console.error('[IPC] Command failed:', error);
+
+        // Send error response to renderer
+        const errorResponse = {
+            cmd: requestData.cmd,
+            sender: Sender.Response,
+            msgCnt: requestData.msgCnt || 1,
+            uuid: requestData.uuid,
+            result: Result.Fail,
+            dataLength: 1,
+            data: [error.message]
+        };
+
+        mainWindow.webContents.send('channel', errorResponse);
+    }
+});
+
+// Diagram file operations
 ipcMain.handle('dialog:saveFile', async (event, options) => {
     const result = await dialog.showSaveDialog(mainWindow, {
         title: 'Save Diagram',
@@ -483,7 +438,6 @@ ipcMain.handle('dialog:saveFile', async (event, options) => {
     return result;
 });
 
-// 다이어그램 열기 대화상자
 ipcMain.handle('dialog:openFile', async (event, options) => {
     const result = await dialog.showOpenDialog(mainWindow, {
         title: 'Open Diagram',
@@ -497,14 +451,10 @@ ipcMain.handle('dialog:openFile', async (event, options) => {
     return result;
 });
 
-// 다이어그램 파일 저장
 ipcMain.handle('save-diagram', async (event, { filePath, jsonData }) => {
     try {
         console.log('[ELECTRON] save-diagram handler called');
         console.log('[ELECTRON] filePath:', filePath);
-        console.log('[ELECTRON] jsonData type:', typeof jsonData);
-        console.log('[ELECTRON] jsonData length:', jsonData?.length);
-        console.log('[ELECTRON] jsonData preview:', jsonData?.substring(0, 100));
 
         if (!jsonData) {
             throw new Error('jsonData is undefined or null');
@@ -519,7 +469,6 @@ ipcMain.handle('save-diagram', async (event, { filePath, jsonData }) => {
     }
 });
 
-// 다이어그램 파일 로드
 ipcMain.handle('load-diagram', async (event, filePath) => {
     try {
         const data = await fs.readFile(filePath, 'utf-8');

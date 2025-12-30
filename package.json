@@ -80,8 +80,12 @@
     "files": [
       "build/**/*",
       "public/Main.js",
+      "winscard-driver/**/*",
       "node_modules/**/*"
     ],
+    "extraMetadata": {
+      "main": "public/Main.js"
+    },
     "win": {
       "target": [
         {

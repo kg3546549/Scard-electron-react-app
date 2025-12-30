@@ -31,10 +31,14 @@ export const useDriverStore = create<DriverStore>((set, get) => {
         set({ lastEvent: event });
 
         // 연결 상태 업데이트
-        if (event.type === 'CONNECTED') {
-            set({ connectionStatus: DriverConnectionStatus.CONNECTED });
-        } else if (event.type === 'DISCONNECTED') {
-            set({ connectionStatus: DriverConnectionStatus.DISCONNECTED });
+        if (event.type === 'DRIVER_STARTED') {
+            set({ connectionStatus: DriverConnectionStatus.RUNNING });
+        } else if (event.type === 'DRIVER_STOPPED') {
+            set({ connectionStatus: DriverConnectionStatus.STOPPED });
+        } else if (event.type === 'CONTEXT_ESTABLISHED') {
+            set({ connectionStatus: DriverConnectionStatus.CONTEXT_READY });
+        } else if (event.type === 'CONTEXT_RELEASED') {
+            set({ connectionStatus: DriverConnectionStatus.RUNNING });
         } else if (event.type === 'ERROR') {
             set({
                 connectionStatus: DriverConnectionStatus.ERROR,
@@ -45,17 +49,17 @@ export const useDriverStore = create<DriverStore>((set, get) => {
 
     return {
         // Initial State
-        connectionStatus: DriverConnectionStatus.DISCONNECTED,
+        connectionStatus: DriverConnectionStatus.STOPPED,
         readerList: [],
         error: null,
         lastEvent: null,
 
         // Actions
         connect: async () => {
-            set({ connectionStatus: DriverConnectionStatus.CONNECTING, error: null });
+            set({ connectionStatus: DriverConnectionStatus.STARTING, error: null });
             try {
                 await pcscService.connect();
-                // 상태는 이벤트 리스너에서 업데이트됨
+                // 상태는 이벤트 리스너에서 CONTEXT_READY로 업데이트됨
             } catch (error) {
                 set({
                     connectionStatus: DriverConnectionStatus.ERROR,
@@ -127,7 +131,7 @@ export const useDriverStore = create<DriverStore>((set, get) => {
 
         reset: () => {
             set({
-                connectionStatus: DriverConnectionStatus.DISCONNECTED,
+                connectionStatus: DriverConnectionStatus.STOPPED,
                 readerList: [],
                 error: null,
                 lastEvent: null,

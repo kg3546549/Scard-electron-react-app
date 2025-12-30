@@ -113,6 +113,14 @@ export class MifareCard extends Card {
     }
 
     /**
+     * 섹터 오류 표시 (4개 블록에 동일한 메시지 기록)
+     */
+    setSectorError(sectorNumber: number, reason: string): void {
+        this.setSectorData(sectorNumber, Array(4).fill(`ERROR: ${reason}`));
+        this.sectors[sectorNumber].isAuthenticated = false;
+    }
+
+    /**
      * 특정 블록 데이터 설정
      */
     setBlockData(sectorNumber: number, blockIndex: number, data: string): void {

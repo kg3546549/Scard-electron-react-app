@@ -106,14 +106,17 @@ export const Sidebar: React.FC = () => {
 
     const getConnectionBadge = () => {
         switch (connectionStatus) {
-            case DriverConnectionStatus.CONNECTED:
-                return <Badge colorScheme="green">Connected</Badge>;
-            case DriverConnectionStatus.CONNECTING:
-                return <Badge colorScheme="yellow">Connecting...</Badge>;
+            case DriverConnectionStatus.CONTEXT_READY:
+                return <Badge colorScheme="green">Context Ready</Badge>;
+            case DriverConnectionStatus.RUNNING:
+                return <Badge colorScheme="blue">Running</Badge>;
+            case DriverConnectionStatus.STARTING:
+                return <Badge colorScheme="yellow">Starting...</Badge>;
             case DriverConnectionStatus.ERROR:
                 return <Badge colorScheme="red">Error</Badge>;
+            case DriverConnectionStatus.STOPPED:
             default:
-                return <Badge colorScheme="gray">Disconnected</Badge>;
+                return <Badge colorScheme="gray">Stopped</Badge>;
         }
     };
 

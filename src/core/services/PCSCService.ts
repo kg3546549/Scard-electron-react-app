@@ -1,6 +1,7 @@
 /**
  * PCSC Service
  * PCSC 드라이버 통신 서비스 - Singleton 패턴
+ * Main.js의 stdin/stdout 드라이버와 IPC로 통신
  */
 
 import { v4 as uuidv4 } from 'uuid';
@@ -20,7 +21,7 @@ import {
  */
 export class PCSCService {
     private static instance: PCSCService | null = null;
-    private connectionStatus: DriverConnectionStatus = DriverConnectionStatus.DISCONNECTED;
+    private connectionStatus: DriverConnectionStatus = DriverConnectionStatus.STOPPED;
     private pendingRequests: Map<string, DriverResponseHandler> = new Map();
     private eventListeners: Set<(event: DriverEvent) => void> = new Set();
 
@@ -43,10 +44,47 @@ export class PCSCService {
      */
     private initializeIPCListener(): void {
         if (typeof window !== 'undefined' && window.electron?.ipcRenderer) {
+            // 명령 응답 리스너
             window.electron.ipcRenderer.on('channel', (_event: any, responseData: ProtocolData) => {
                 this.handleResponse(responseData);
             });
+
+            // 드라이버 상태 리스너
+            window.electron.ipcRenderer.on('driver-status', (_event: any, statusData: { status: string; message: string }) => {
+                this.handleDriverStatus(statusData);
+            });
         }
+    }
+
+    /**
+     * 드라이버 상태 처리
+     */
+    private handleDriverStatus(statusData: { status: string; message: string }): void {
+        console.log('Driver Status:', statusData);
+
+        let eventType: DriverEventType;
+        switch (statusData.status) {
+            case 'RUNNING':
+                this.connectionStatus = DriverConnectionStatus.RUNNING;
+                eventType = DriverEventType.DRIVER_STARTED;
+                break;
+            case 'STOPPED':
+                this.connectionStatus = DriverConnectionStatus.STOPPED;
+                eventType = DriverEventType.DRIVER_STOPPED;
+                break;
+            case 'ERROR':
+                this.connectionStatus = DriverConnectionStatus.ERROR;
+                eventType = DriverEventType.ERROR;
+                break;
+            default:
+                return;
+        }
+
+        const event: DriverEvent = {
+            type: eventType,
+            timestamp: new Date(),
+        };
+        this.notifyListeners(event);
     }
 
     /**
@@ -143,16 +181,17 @@ export class PCSCService {
     }
 
     /**
-     * 소켓 연결
+     * Context 설정
+     * 드라이버가 자동으로 spawn되므로 별도의 연결 과정 불필요
      */
     async connect(): Promise<boolean> {
         try {
-            this.connectionStatus = DriverConnectionStatus.CONNECTING;
-            await this.sendCommand(Command.Cmd_Socket_Connect);
-            this.connectionStatus = DriverConnectionStatus.CONNECTED;
+            this.connectionStatus = DriverConnectionStatus.STARTING;
+            await this.sendCommand(Command.Cmd_SCard_Establish_Context);
+            this.connectionStatus = DriverConnectionStatus.CONTEXT_READY;
 
             const event: DriverEvent = {
-                type: DriverEventType.CONNECTED,
+                type: DriverEventType.CONTEXT_ESTABLISHED,
                 timestamp: new Date(),
             };
             this.notifyListeners(event);
@@ -171,15 +210,15 @@ export class PCSCService {
     }
 
     /**
-     * 소켓 연결 해제
+     * Context 해제
      */
     async disconnect(): Promise<boolean> {
         try {
-            await this.sendCommand(Command.Cmd_Socket_Disconnect);
-            this.connectionStatus = DriverConnectionStatus.DISCONNECTED;
+            await this.sendCommand(Command.Cmd_Scard_Release_Context);
+            this.connectionStatus = DriverConnectionStatus.RUNNING;
 
             const event: DriverEvent = {
-                type: DriverEventType.DISCONNECTED,
+                type: DriverEventType.CONTEXT_RELEASED,
                 timestamp: new Date(),
             };
             this.notifyListeners(event);
@@ -192,14 +231,14 @@ export class PCSCService {
     }
 
     /**
-     * Context 설정
+     * Context 설정 (별칭)
      */
     async establishContext(): Promise<void> {
         await this.sendCommand(Command.Cmd_SCard_Establish_Context);
     }
 
     /**
-     * Context 해제
+     * Context 해제 (별칭)
      */
     async releaseContext(): Promise<void> {
         await this.sendCommand(Command.Cmd_Scard_Release_Context);
@@ -240,14 +279,14 @@ export class PCSCService {
      */
     async transmit(apduCommand: string): Promise<string> {
         const response = await this.sendCommand(Command.Cmd_SCard_Transmit, [apduCommand]);
-        return response.data[1] || ''; // data[0]은 요청, data[1]은 응답
+        return response.data[0] || ''; // 응답 APDU
     }
 
     /**
      * Mifare UID 조회
      */
     async getMifareUID(): Promise<string> {
-        const response = await this.sendCommand(Command.Cmd_MI_Get_UID);
+        const response = await this.sendCommand(Command.Cmd_SCard_Transmit, ['FFCA000000']);
         return response.data[0] || '';
     }
 
@@ -255,36 +294,70 @@ export class PCSCService {
      * Mifare 키 로드
      */
     async loadMifareKey(key: string): Promise<void> {
-        await this.sendCommand(Command.Cmd_MI_Load_Key, [key]);
+        const keyHex = key.toUpperCase();
+        if (keyHex.length !== 12) {
+            throw new Error('Mifare key must be 6 bytes (12 hex chars)');
+        }
+        // Load key into key slot 0: FF 82 00 00 06 <key>
+        const apdu = `FF82000006${keyHex}`;
+        await this.sendCommand(Command.Cmd_SCard_Transmit, [apdu]);
     }
 
     /**
      * Mifare 인증
      */
-    async authenticateMifare(blockNumber: string, keyType: string): Promise<void> {
-        await this.sendCommand(Command.Cmd_MI_Authentication, [blockNumber, keyType]);
+    async authenticateMifare(blockNumber: string, keyType: string): Promise<string> {
+        const blockHex = this.toHexByte(blockNumber);
+        const keyTypeByte = keyType === 'B' ? '61' : '60'; // default A(60), B(61)
+        const keySlot = '00'; // use slot 0 where we loaded the key
+        // FF 86 00 00 05 01 00 <block> <keyType> <keySlot>
+        const apdu = `FF860000050100${blockHex}${keyTypeByte}${keySlot}`;
+        const response = await this.sendCommand(Command.Cmd_SCard_Transmit, [apdu]);
+        return response.data[0] || '';
     }
 
     /**
      * Mifare 블록 읽기
      */
     async readMifareBlock(blockNumber: string): Promise<string> {
-        const response = await this.sendCommand(Command.Cmd_MI_Read_Block, [blockNumber]);
-        return response.data[1] || ''; // data[0]은 블록 번호, data[1]은 데이터
+        const blockHex = this.toHexByte(blockNumber);
+        // FF B0 00 <block> 10
+        const apdu = `FFB000${blockHex}10`;
+        const response = await this.sendCommand(Command.Cmd_SCard_Transmit, [apdu]);
+        return response.data[0] || '';
     }
 
     /**
      * Mifare 블록 쓰기
      */
     async writeMifareBlock(blockNumber: string, data: string): Promise<void> {
-        await this.sendCommand(Command.Cmd_MI_Write_Block, [blockNumber, data]);
+        const blockHex = this.toHexByte(blockNumber);
+        const dataHex = data.toUpperCase();
+        if (dataHex.length !== 32) {
+            throw new Error('Mifare write data must be 16 bytes (32 hex chars)');
+        }
+        // FF A0 00 <block> 10 <data>
+        const apdu = `FFA000${blockHex}10${dataHex}`;
+        await this.sendCommand(Command.Cmd_SCard_Transmit, [apdu]);
     }
 
     /**
      * Mifare HALT
      */
     async haltMifare(): Promise<void> {
-        await this.sendCommand(Command.Cmd_MI_HALT);
+        // Not available over this driver; no-op
+        return;
+    }
+
+    /**
+     * 숫자/문자 블록 번호를 1바이트 hex로 변환
+     */
+    private toHexByte(value: string): string {
+        const num = typeof value === 'string' ? parseInt(value, 10) : value;
+        if (Number.isNaN(num) || num < 0 || num > 255) {
+            throw new Error('Block number must be between 0 and 255');
+        }
+        return num.toString(16).padStart(2, '0').toUpperCase();
     }
 
     /**
@@ -298,7 +371,7 @@ export class PCSCService {
      * 연결 여부 확인
      */
     isConnected(): boolean {
-        return this.connectionStatus === DriverConnectionStatus.CONNECTED;
+        return this.connectionStatus === DriverConnectionStatus.CONTEXT_READY;
     }
 }
 

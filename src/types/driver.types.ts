@@ -40,8 +40,8 @@ export enum Command {
  * 송신자 타입
  */
 export enum Sender {
-    Request = 0,
-    Response = 1,
+    Request = 10,
+    Response = 20,
 }
 
 /**
@@ -71,18 +71,21 @@ export interface ProtocolData {
  * 드라이버 연결 상태
  */
 export enum DriverConnectionStatus {
-    DISCONNECTED = 'DISCONNECTED',
-    CONNECTING = 'CONNECTING',
-    CONNECTED = 'CONNECTED',
-    ERROR = 'ERROR',
+    STOPPED = 'STOPPED',           // 드라이버 프로세스 정지됨
+    STARTING = 'STARTING',         // 드라이버 프로세스 시작 중
+    RUNNING = 'RUNNING',           // 드라이버 프로세스 실행 중
+    CONTEXT_READY = 'CONTEXT_READY', // Context 설정 완료 (카드 사용 가능)
+    ERROR = 'ERROR',               // 에러 발생
 }
 
 /**
  * 드라이버 이벤트 타입
  */
 export enum DriverEventType {
-    CONNECTED = 'CONNECTED',
-    DISCONNECTED = 'DISCONNECTED',
+    DRIVER_STARTED = 'DRIVER_STARTED',     // 드라이버 프로세스 시작됨
+    DRIVER_STOPPED = 'DRIVER_STOPPED',     // 드라이버 프로세스 종료됨
+    CONTEXT_ESTABLISHED = 'CONTEXT_ESTABLISHED', // Context 설정됨
+    CONTEXT_RELEASED = 'CONTEXT_RELEASED',       // Context 해제됨
     DATA_RECEIVED = 'DATA_RECEIVED',
     ERROR = 'ERROR',
 }

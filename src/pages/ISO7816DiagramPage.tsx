@@ -9,11 +9,15 @@ import ReactFlow, {
     Controls,
     MiniMap,
     addEdge as addReactFlowEdge,
+    applyEdgeChanges,
+    applyNodeChanges,
     useNodesState,
     useEdgesState,
     Connection,
     Edge,
+    EdgeChange,
     Node,
+    NodeChange,
     ReactFlowProvider,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
@@ -64,8 +68,8 @@ const DiagramPageContent: React.FC = () => {
         removeEdge,
     } = useDiagramStore();
 
-    const [nodes, setNodes, onNodesChange] = useNodesState([]);
-    const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+    const [nodes, setNodes,] = useNodesState([]);
+    const [edges, setEdges,] = useEdgesState([]);
 
     // Initialize diagram on mount if not exists
     useEffect(() => {
@@ -128,6 +132,35 @@ const DiagramPageContent: React.FC = () => {
             addNode(newNode as unknown as DiagramNode);
         },
         [reactFlowInstance, setNodes, addNode]
+    );
+
+    const handleNodesChange = useCallback(
+        (changes: NodeChange[]) => {
+            setNodes((nds) => applyNodeChanges(changes, nds));
+
+            changes.forEach((change) => {
+                if (change.type === 'remove' && 'id' in change && change.id) {
+                    removeNode(change.id);
+                }
+                if (change.type === 'position' && 'id' in change && change.id && change.position) {
+                    updateNode(change.id, { position: change.position });
+                }
+            });
+        },
+        [setNodes, removeNode, updateNode]
+    );
+
+    const handleEdgesChange = useCallback(
+        (changes: EdgeChange[]) => {
+            setEdges((eds) => applyEdgeChanges(changes, eds));
+
+            changes.forEach((change) => {
+                if (change.type === 'remove' && 'id' in change && change.id) {
+                    removeEdge(change.id);
+                }
+            });
+        },
+        [setEdges, removeEdge]
     );
 
     const onNodeClick = useCallback(
@@ -214,9 +247,10 @@ const DiagramPageContent: React.FC = () => {
     const handleLoad = async () => {
         try {
             await loadDiagram();
-            if (currentDiagram) {
-                setNodes(currentDiagram.nodes as Node[]);
-                setEdges(currentDiagram.edges as Edge[]);
+            const { currentDiagram: latestDiagram } = useDiagramStore.getState();
+            if (latestDiagram) {
+                setNodes(latestDiagram.nodes as Node[]);
+                setEdges(latestDiagram.edges as Edge[]);
                 toast({
                     title: 'Diagram Loaded',
                     status: 'success',
@@ -287,8 +321,8 @@ const DiagramPageContent: React.FC = () => {
                                 <ReactFlow
                                     nodes={nodes}
                                     edges={edges}
-                                    onNodesChange={onNodesChange}
-                                    onEdgesChange={onEdgesChange}
+                                    onNodesChange={handleNodesChange}
+                                    onEdgesChange={handleEdgesChange}
                                     onConnect={onConnect}
                                     onNodeClick={onNodeClick}
                                     onInit={setReactFlowInstance}
