@@ -39,6 +39,7 @@ interface DiagramStore {
     pauseExecution: () => void;
     stopExecution: () => void;
     clearDiagram: () => void;
+    resetExecution: () => void;
     reset: () => void;
 }
 
@@ -201,8 +202,17 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
     clearDiagram: () => {
         const { service } = get();
         service.reset();
+        const newDiagram = service.createDiagram('New Diagram', 'APDU Command Sequence');
         set({
-            currentDiagram: null,
+            currentDiagram: newDiagram,
+            executionStatus: DiagramExecutionStatus.IDLE,
+            executionResults: [],
+            error: null,
+        });
+    },
+
+    resetExecution: () => {
+        set({
             executionStatus: DiagramExecutionStatus.IDLE,
             executionResults: [],
             error: null,

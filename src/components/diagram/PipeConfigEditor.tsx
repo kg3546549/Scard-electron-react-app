@@ -12,6 +12,7 @@ import {
     Select,
     Text,
     Box,
+    Button,
 } from '@chakra-ui/react';
 import { PipeConfig } from '../../types';
 
@@ -31,10 +32,53 @@ export const PipeConfigEditor: React.FC<PipeConfigEditorProps> = ({
             sourceNodeId: pipeConfig?.sourceNodeId || '',
             dataOffset: pipeConfig?.dataOffset || 0,
             dataLength: pipeConfig?.dataLength || -1,
+            segments: pipeConfig?.segments,
             [field]: value,
         };
         onChange(newConfig);
     };
+
+    const handleSegmentChange = (index: number, field: 'dataOffset' | 'dataLength', value: number) => {
+        const segments = pipeConfig?.segments ? [...pipeConfig.segments] : [];
+        segments[index] = {
+            dataOffset: segments[index]?.dataOffset ?? 0,
+            dataLength: segments[index]?.dataLength ?? -1,
+            [field]: value,
+        };
+        const newConfig: PipeConfig = {
+            sourceNodeId: pipeConfig?.sourceNodeId || '',
+            dataOffset: segments[0]?.dataOffset ?? pipeConfig?.dataOffset ?? 0,
+            dataLength: segments[0]?.dataLength ?? pipeConfig?.dataLength ?? -1,
+            segments,
+        };
+        onChange(newConfig);
+    };
+
+    const addSegment = () => {
+        const segments = pipeConfig?.segments ? [...pipeConfig.segments] : [];
+        segments.push({ dataOffset: 0, dataLength: -1 });
+        const newConfig: PipeConfig = {
+            sourceNodeId: pipeConfig?.sourceNodeId || '',
+            dataOffset: segments[0]?.dataOffset ?? 0,
+            dataLength: segments[0]?.dataLength ?? -1,
+            segments,
+        };
+        onChange(newConfig);
+    };
+
+    const removeSegment = (index: number) => {
+        const segments = pipeConfig?.segments ? [...pipeConfig.segments] : [];
+        segments.splice(index, 1);
+        const newConfig: PipeConfig = {
+            sourceNodeId: pipeConfig?.sourceNodeId || '',
+            dataOffset: segments[0]?.dataOffset ?? 0,
+            dataLength: segments[0]?.dataLength ?? -1,
+            segments: segments.length > 0 ? segments : undefined,
+        };
+        onChange(newConfig);
+    };
+
+    const segments = pipeConfig?.segments || [{ dataOffset: pipeConfig?.dataOffset || 0, dataLength: pipeConfig?.dataLength ?? -1 }];
 
     return (
         <VStack spacing={3} align="stretch">
@@ -63,34 +107,45 @@ export const PipeConfigEditor: React.FC<PipeConfigEditorProps> = ({
                 </Select>
             </FormControl>
 
-            <FormControl>
-                <FormLabel fontSize="sm">Data Offset (bytes)</FormLabel>
-                <Input
-                    size="sm"
-                    type="number"
-                    value={pipeConfig?.dataOffset || 0}
-                    onChange={(e) => handleChange('dataOffset', parseInt(e.target.value) || 0)}
-                    placeholder="0"
-                    min="0"
-                />
-                <Text fontSize="xs" color="gray.500" mt={1}>
-                    데이터 시작 위치 (0 = 처음부터)
+            {/* Multi-segment support */}
+            <Box>
+                <Text fontSize="xs" color="gray.600" mb={2}>
+                    Add multiple segments to concatenate slices from the source.
                 </Text>
-            </FormControl>
-
-            <FormControl>
-                <FormLabel fontSize="sm">Data Length (bytes)</FormLabel>
-                <Input
-                    size="sm"
-                    type="number"
-                    value={pipeConfig?.dataLength || -1}
-                    onChange={(e) => handleChange('dataLength', parseInt(e.target.value) || -1)}
-                    placeholder="-1"
-                />
-                <Text fontSize="xs" color="gray.500" mt={1}>
-                    읽을 데이터 길이 (-1 = 전체)
-                </Text>
-            </FormControl>
+                <VStack spacing={2} align="stretch">
+                    {segments.map((seg, idx) => (
+                        <Box key={idx} p={2} borderWidth="1px" borderRadius="md" bg="gray.50">
+                            <Text fontSize="xs" fontWeight="bold" mb={1}>
+                                Segment {idx + 1}
+                            </Text>
+                            <FormControl>
+                                <FormLabel fontSize="xs">Offset (bytes)</FormLabel>
+                                <Input
+                                    size="sm"
+                                    type="number"
+                                    value={seg.dataOffset}
+                                    onChange={(e) => handleSegmentChange(idx, 'dataOffset', parseInt(e.target.value) || 0)}
+                                />
+                            </FormControl>
+                            <FormControl mt={2}>
+                                <FormLabel fontSize="xs">Length (bytes)</FormLabel>
+                                <Input
+                                    size="sm"
+                                    type="number"
+                                    value={seg.dataLength}
+                                    onChange={(e) => handleSegmentChange(idx, 'dataLength', parseInt(e.target.value) || -1)}
+                                />
+                            </FormControl>
+                            <Button size="xs" mt={2} colorScheme="red" variant="outline" onClick={() => removeSegment(idx)}>
+                                Remove Segment
+                            </Button>
+                        </Box>
+                    ))}
+                    <Button size="xs" colorScheme="blue" variant="outline" onClick={addSegment}>
+                        Add Segment
+                    </Button>
+                </VStack>
+            </Box>
         </VStack>
     );
 };

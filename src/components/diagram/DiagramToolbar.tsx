@@ -23,6 +23,7 @@ interface DiagramToolbarProps {
     onLoad: () => void;
     onClear: () => void;
     onNew: () => void;
+    onReset?: () => void;
     isExecuting: boolean;
     isPaused: boolean;
 }
@@ -35,6 +36,7 @@ export const DiagramToolbar: React.FC<DiagramToolbarProps> = ({
     onLoad,
     onClear,
     onNew,
+    onReset,
     isExecuting,
     isPaused,
 }) => {
@@ -82,6 +84,11 @@ export const DiagramToolbar: React.FC<DiagramToolbarProps> = ({
                 <Button leftIcon={<FaTrash />} onClick={onClear} colorScheme="red">
                     Clear
                 </Button>
+                {onReset && (
+                    <Button onClick={onReset} colorScheme="purple">
+                        Reset Status
+                    </Button>
+                )}
             </ButtonGroup>
         </HStack>
     );

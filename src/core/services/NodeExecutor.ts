@@ -18,7 +18,9 @@ export class NodeExecutor {
      * 노드 실행
      */
     async executeNode(node: DiagramNode, previousNodes?: Map<string, DiagramNode>): Promise<APDUResponse> {
-        switch (node.type) {
+        const nodeType = (node as any)?.data?.type || node.type;
+
+        switch (nodeType) {
             case DiagramNodeType.ENCRYPT_DATA:
                 return this.executeEncryptData(node, previousNodes);
             case DiagramNodeType.DECRYPT_DATA:
@@ -53,11 +55,16 @@ export class NodeExecutor {
             throw new Error('CLA, INS, P1, P2 parameters are required');
         }
 
-        // Check if data should come from pipe (for auth nodes)
+        // 파이프 데이터 우선 사용 (pipeConfig가 없으면 직전 실행 노드 데이터 사용)
         let data = '';
-        if (node.data.pipeConfig && previousNodes) {
-            data = this.extractPipeData(node, previousNodes);
-        } else {
+        const pipeConfig = this.resolvePipeConfig(node, previousNodes, {
+            allowDefault: true,
+            preferCryptoSource: true, // APDU 노드는 암복호화 노드 출력만 기본 파이프 소스로 삼는다
+        });
+        if (pipeConfig && previousNodes) {
+            data = this.extractPipeDataFromConfig(pipeConfig, previousNodes);
+        }
+        if (!data) {
             const dataParam = this.getParameter(node, 'Data');
             data = dataParam?.value || '';
         }
@@ -70,6 +77,9 @@ export class NodeExecutor {
             data,
             leParam?.value
         );
+
+        // 실행된 APDU를 노드에 기록해 결과 패널에 표시
+        (node.data as any).lastCommandHex = commandHex;
 
         return this.iso7816Service.sendQuickCommand(commandHex);
     }
@@ -145,37 +155,41 @@ export class NodeExecutor {
     /**
      * 파이프에서 데이터 추출
      */
-    private extractPipeData(node: DiagramNode, previousNodes?: Map<string, DiagramNode>): string {
-        if (!node.data.pipeConfig || !previousNodes) {
-            throw new Error('Pipe config or previous nodes not available');
+    private extractPipeDataFromConfig(
+        pipeConfig: { sourceNodeId: string; dataOffset: number; dataLength: number; segments?: { dataOffset: number; dataLength: number }[] },
+        previousNodes?: Map<string, DiagramNode>
+    ): string {
+        if (!previousNodes) {
+            throw new Error('Previous nodes not available for pipe');
         }
 
-        const sourceNode = previousNodes.get(node.data.pipeConfig.sourceNodeId);
+        const sourceNode = previousNodes.get(pipeConfig.sourceNodeId);
         if (!sourceNode) {
-            throw new Error(`Source node not found: ${node.data.pipeConfig.sourceNodeId}`);
+            throw new Error(`Source node not found: ${pipeConfig.sourceNodeId}`);
         }
 
         // 소스 데이터 가져오기 (processedData 우선, 없으면 response.data)
         let sourceData = sourceNode.data.processedData || sourceNode.data.response?.data || '';
 
         if (!sourceData) {
-            throw new Error(`No data available from source node: ${node.data.pipeConfig.sourceNodeId}`);
+            throw new Error(`No data available from source node: ${pipeConfig.sourceNodeId}`);
         }
 
-        // 오프셋과 길이 적용
-        const offset = node.data.pipeConfig.dataOffset * 2; // hex 문자열이므로 *2
-        let length = node.data.pipeConfig.dataLength;
+        const segments = pipeConfig.segments && pipeConfig.segments.length > 0
+            ? pipeConfig.segments
+            : [{ dataOffset: pipeConfig.dataOffset, dataLength: pipeConfig.dataLength }];
 
-        if (length === -1) {
-            // 전체 데이터
-            sourceData = sourceData.substring(offset);
-        } else {
-            // 지정된 길이만큼
+        const merged = segments.map((seg) => {
+            const offset = seg.dataOffset * 2; // hex 문자열이므로 *2
+            let length = seg.dataLength;
+            if (length === -1) {
+                return sourceData.substring(offset);
+            }
             length = length * 2; // hex 문자열이므로 *2
-            sourceData = sourceData.substring(offset, offset + length);
-        }
+            return sourceData.substring(offset, offset + length);
+        }).join('');
 
-        return sourceData;
+        return merged;
     }
 
     /**
@@ -185,8 +199,12 @@ export class NodeExecutor {
         node: DiagramNode,
         previousNodes?: Map<string, DiagramNode>
     ): Promise<APDUResponse> {
-        // 파이프에서 데이터 추출
-        const sourceData = this.extractPipeData(node, previousNodes);
+        // 파이프에서 데이터 추출 (pipeConfig 없으면 직전 노드 전체 데이터)
+        const pipeConfig = this.resolvePipeConfig(node, previousNodes, { allowDefault: true });
+        if (!pipeConfig) {
+            throw new Error('No source node for encryption pipe');
+        }
+        const sourceData = this.extractPipeDataFromConfig(pipeConfig, previousNodes);
 
         if (!node.data.cryptoConfig) {
             throw new Error('Crypto config is required for ENCRYPT_DATA node');
@@ -215,8 +233,12 @@ export class NodeExecutor {
         node: DiagramNode,
         previousNodes?: Map<string, DiagramNode>
     ): Promise<APDUResponse> {
-        // 파이프에서 데이터 추출
-        const sourceData = this.extractPipeData(node, previousNodes);
+        // 파이프에서 데이터 추출 (pipeConfig 없으면 직전 노드 전체 데이터)
+        const pipeConfig = this.resolvePipeConfig(node, previousNodes, { allowDefault: true });
+        if (!pipeConfig) {
+            throw new Error('No source node for decryption pipe');
+        }
+        const sourceData = this.extractPipeDataFromConfig(pipeConfig, previousNodes);
 
         if (!node.data.cryptoConfig) {
             throw new Error('Crypto config is required for DECRYPT_DATA node');
@@ -235,6 +257,50 @@ export class NodeExecutor {
             sw2: '00',
             statusCode: '9000',
             success: true,
+        };
+    }
+
+    /**
+     * 파이프 설정 해석: 명시적 설정이 있으면 사용, 없으면 직전 실행 노드 전체 데이터 사용
+     */
+    private resolvePipeConfig(
+        node: DiagramNode,
+        previousNodes?: Map<string, DiagramNode>,
+        options?: { allowDefault?: boolean; preferCryptoSource?: boolean }
+    ): { sourceNodeId: string; dataOffset: number; dataLength: number } | null {
+        if (node.data.pipeConfig) {
+            return node.data.pipeConfig;
+        }
+
+        if (!options?.allowDefault || !previousNodes || previousNodes.size === 0) {
+            return null;
+        }
+
+        const values = Array.from(previousNodes.values());
+
+        // 선호: 마지막으로 실행된 Crypto 노드
+        if (options?.preferCryptoSource) {
+            for (let i = values.length - 1; i >= 0; i--) {
+                const n = values[i];
+                const t = (n.data as any)?.type || n.type;
+                if (t === DiagramNodeType.ENCRYPT_DATA || t === DiagramNodeType.DECRYPT_DATA) {
+                    return {
+                        sourceNodeId: n.id,
+                        dataOffset: 0,
+                        dataLength: -1,
+                    };
+                }
+            }
+            // 암복호화 소스가 없으면 파이프하지 않음
+            return null;
+        }
+
+        // 기본: 마지막 실행 노드
+        const last = values[values.length - 1];
+        return {
+            sourceNodeId: last.id,
+            dataOffset: 0,
+            dataLength: -1,
         };
     }
 }

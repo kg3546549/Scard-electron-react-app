@@ -57,6 +57,10 @@ export interface PipeConfig {
     sourceNodeId: string; // 이전 노드 ID
     dataOffset: number; // 데이터 시작 오프셋 (바이트)
     dataLength: number; // 읽을 데이터 길이 (-1 = 전체)
+    segments?: Array<{
+        dataOffset: number;
+        dataLength: number;
+    }>; // 다중 구간 파이프 지원
 }
 
 /**

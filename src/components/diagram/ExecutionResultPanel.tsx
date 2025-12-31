@@ -27,12 +27,14 @@ import {
     AccordionIcon,
 } from '@chakra-ui/react';
 import { NodeExecutionResult } from '../../types';
+import { APDUCommand } from '../../types/apdu.types';
 
 interface ExecutionResultPanelProps {
     results: NodeExecutionResult[];
+    getNodeLabel?: (nodeId: string) => string | undefined;
 }
 
-export const ExecutionResultPanel: React.FC<ExecutionResultPanelProps> = ({ results }) => {
+export const ExecutionResultPanel: React.FC<ExecutionResultPanelProps> = ({ results, getNodeLabel }) => {
     if (results.length === 0) {
         return (
             <Card h="100%">
@@ -72,7 +74,7 @@ export const ExecutionResultPanel: React.FC<ExecutionResultPanelProps> = ({ resu
                                             {index + 1}
                                         </Badge>
                                         <Text fontSize="sm" fontWeight="bold">
-                                            Node {result.nodeId.slice(0, 8)}
+                                            {getNodeLabel?.(result.nodeId) || `Node ${result.nodeId.slice(0, 8)}`}
                                         </Text>
                                     </HStack>
                                     <HStack>
@@ -147,6 +149,24 @@ export const ExecutionResultPanel: React.FC<ExecutionResultPanelProps> = ({ resu
                                                                 </Code>
                                                             </Td>
                                                         </Tr>
+                                                        {(result.response as any)?.command && (
+                                                            <Tr>
+                                                                <Td fontSize="xs" fontWeight="bold">
+                                                                    Command
+                                                                </Td>
+                                                                <Td fontSize="xs">
+                                                                    <Code
+                                                                        display="block"
+                                                                        whiteSpace="pre-wrap"
+                                                                        wordBreak="break-all"
+                                                                    >
+                                                                        {Array.isArray((result.response as any).command)
+                                                                            ? (result.response as any).command.join(' ')
+                                                                            : (result.response as any).command}
+                                                                    </Code>
+                                                                </Td>
+                                                            </Tr>
+                                                        )}
                                                         {result.response.data && (
                                                             <Tr>
                                                                 <Td fontSize="xs" fontWeight="bold">

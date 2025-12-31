@@ -61,8 +61,17 @@ export const APDUNode: React.FC<NodeProps<APDUNodeData>> = ({ data, selected }) 
 
                 {data.response && (
                     <Text fontSize="xs" color="gray.600" noOfLines={1}>
-                        {data.response.sw1.toString(16).padStart(2, '0')}
-                        {data.response.sw2.toString(16).padStart(2, '0')}
+                        {(() => {
+                            const resp: any = data.response;
+                            if (typeof resp === 'string') return resp;
+                            if (resp.statusCode) return resp.statusCode;
+                            if (resp.sw1 !== undefined && resp.sw2 !== undefined) {
+                                const sw1 = Number(resp.sw1).toString(16).padStart(2, '0');
+                                const sw2 = Number(resp.sw2).toString(16).padStart(2, '0');
+                                return `${sw1}${sw2}`.toUpperCase();
+                            }
+                            return '';
+                        })()}
                     </Text>
                 )}
 

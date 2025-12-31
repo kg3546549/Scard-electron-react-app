@@ -26,6 +26,7 @@ import {
     Grid,
     GridItem,
     useToast,
+    Flex,
 } from '@chakra-ui/react';
 import {
     APDUNode,
@@ -40,9 +41,24 @@ import { DiagramNodeType, DiagramNode, DiagramEdge } from '../types';
 const nodeTypes = {
     apduNode: APDUNode,
 };
+const edgeOptions = {
+    style: { strokeWidth: 2 },
+};
 
 let nodeId = 0;
 const getId = () => `node_${nodeId++}`;
+const makeEdgeId = () => `edge_${Date.now()}_${Math.random().toString(16).slice(2, 6)}`;
+const syncNodeIdCounter = (nodes: Node[]) => {
+    const maxId = nodes.reduce((max, n) => {
+        const match = String(n.id).match(/node_(\d+)/);
+        if (match && match[1]) {
+            const num = parseInt(match[1], 10);
+            return isNaN(num) ? max : Math.max(max, num);
+        }
+        return max;
+    }, -1);
+    nodeId = maxId + 1;
+};
 
 const DiagramPageContent: React.FC = () => {
     const toast = useToast();
@@ -66,6 +82,7 @@ const DiagramPageContent: React.FC = () => {
         addEdge,
         removeNode,
         removeEdge,
+        resetExecution,
     } = useDiagramStore();
 
     const [nodes, setNodes,] = useNodesState([]);
@@ -76,20 +93,23 @@ const DiagramPageContent: React.FC = () => {
         if (!currentDiagram) {
             createDiagram('New Diagram', 'APDU Command Sequence');
         }
+        return () => {
+            nodeId = 0;
+        };
     }, []);
 
     const onConnect = useCallback(
         (params: Connection | Edge) => {
-            setEdges((eds) => addReactFlowEdge(params, eds));
-            // Also add to DiagramService
-            const newEdge = params as any;
-            if (newEdge.source && newEdge.target) {
-                addEdge({
-                    id: `edge-${Date.now()}`,
-                    source: newEdge.source,
-                    target: newEdge.target,
-                    type: 'default',
-                });
+            const edge: Edge = {
+                id: makeEdgeId(),
+                source: (params as any).source,
+                target: (params as any).target,
+                type: 'default',
+                deletable: true,
+            };
+            setEdges((eds) => addReactFlowEdge(edge, eds));
+            if (edge.source && edge.target) {
+                addEdge(edge as unknown as DiagramEdge);
             }
         },
         [setEdges, addEdge]
@@ -126,12 +146,37 @@ const DiagramPageContent: React.FC = () => {
                 },
             };
 
-            setNodes((nds) => nds.concat(newNode));
+            let updatedNodes: Node[] = [];
+            setNodes((nds) => {
+                updatedNodes = nds.concat(newNode);
+                return updatedNodes;
+            });
 
             // Also add to DiagramService
             addNode(newNode as unknown as DiagramNode);
+
+            // Auto-connect from a tail node (no outgoing edges) to the new node
+            setEdges((eds) => {
+                // tail 후보: 아웃고잉이 없고 새 노드가 아닌 기존 노드
+                const tails = updatedNodes.filter(
+                    (n) => n.id !== newNode.id && !eds.some((e) => e.source === n.id)
+                );
+                const tailNode = tails.length > 0 ? tails[tails.length - 1] : null;
+                if (tailNode) {
+                    const edge: Edge = {
+                        id: makeEdgeId(),
+                        source: tailNode.id,
+                        target: newNode.id,
+                        type: 'default',
+                        deletable: true,
+                    };
+                    addEdge(edge as unknown as DiagramEdge);
+                    return addReactFlowEdge(edge, eds);
+                }
+                return eds;
+            });
         },
-        [reactFlowInstance, setNodes, addNode]
+        [reactFlowInstance, setNodes, addNode, addEdge]
     );
 
     const handleNodesChange = useCallback(
@@ -187,6 +232,16 @@ const DiagramPageContent: React.FC = () => {
             }
         },
         [setNodes, updateNode, selectedNode]
+    );
+
+    const handleNodeDelete = useCallback(
+        (nodeId: string) => {
+            setNodes((nds) => nds.filter((n) => n.id !== nodeId));
+            setEdges((eds) => eds.filter((e) => e.source !== nodeId && e.target !== nodeId));
+            removeNode(nodeId);
+            setSelectedNode(null);
+        },
+        [setNodes, setEdges, removeNode]
     );
 
     const onDragStart = (event: React.DragEvent, nodeType: DiagramNodeType) => {
@@ -249,8 +304,20 @@ const DiagramPageContent: React.FC = () => {
             await loadDiagram();
             const { currentDiagram: latestDiagram } = useDiagramStore.getState();
             if (latestDiagram) {
-                setNodes(latestDiagram.nodes as Node[]);
-                setEdges(latestDiagram.edges as Edge[]);
+                // reset execution states on load
+                const loadedNodes = (latestDiagram.nodes as Node[]).map((n) => ({
+                    ...n,
+                    data: {
+                        ...n.data,
+                        executed: false,
+                        error: undefined,
+                        response: undefined,
+                    },
+                }));
+                syncNodeIdCounter(loadedNodes);
+                setNodes(loadedNodes);
+                setEdges((latestDiagram.edges as Edge[]).map((e) => ({ deletable: true, ...e })));
+                resetExecution();
                 toast({
                     title: 'Diagram Loaded',
                     status: 'success',
@@ -267,10 +334,34 @@ const DiagramPageContent: React.FC = () => {
         }
     };
 
+    // Reflect execution results on node status (for status icons)
+    useEffect(() => {
+        if (!executionResults || executionResults.length === 0) return;
+        setNodes((nds) =>
+            nds.map((node) => {
+                const result = executionResults.find((r) => r.nodeId === node.id);
+                if (!result) return node;
+                const isErrorStatus = !!result.response && result.response.statusCode && result.response.statusCode !== '9000';
+                const hasError = result.success === false || isErrorStatus;
+                return {
+                    ...node,
+                    data: {
+                        ...node.data,
+                        executed: !hasError,
+                        error: hasError ? (result.error || `SW=${result.response?.statusCode || ''}`) : undefined,
+                        response: result.response,
+                    },
+                };
+            })
+        );
+    }, [executionResults, setNodes]);
+
     const handleClear = () => {
         setNodes([]);
         setEdges([]);
         clearDiagram();
+        resetExecution();
+        nodeId = 0;
         toast({
             title: 'Diagram Cleared',
             status: 'info',
@@ -283,7 +374,7 @@ const DiagramPageContent: React.FC = () => {
     };
 
     return (
-        <Box h="calc(100vh - 100px)">
+        <Box h="calc(100vh - 80px)" display="flex" flexDirection="column">
             <DiagramToolbar
                 onExecute={handleExecute}
                 onPause={pauseExecution}
@@ -292,67 +383,70 @@ const DiagramPageContent: React.FC = () => {
                 onLoad={handleLoad}
                 onClear={handleClear}
                 onNew={handleNew}
+                onReset={resetExecution}
                 isExecuting={executionStatus === 'RUNNING'}
                 isPaused={executionStatus === 'PAUSED'}
             />
 
-            <Grid
-                templateColumns="250px 1fr"
-                templateRows="1fr 250px"
-                h="calc(100% - 60px)"
-                mt={2}
-                gap={2}
-            >
-                <GridItem rowSpan={2}>
+            <Flex flex="1" mt={2} gap={2} minH="0">
+                <Box w="240px" h="100%" overflowY="auto">
                     <NodePalette onDragStart={onDragStart} />
-                </GridItem>
+                </Box>
 
-                <GridItem>
-                    <Grid templateColumns="1fr 300px" h="100%" gap={2}>
-                        <GridItem>
-                            <Box
-                                ref={reactFlowWrapper}
-                                h="100%"
-                                border="1px solid"
-                                borderColor="gray.200"
-                                borderRadius="md"
-                                bg="gray.50"
+                <Flex direction="column" flex="1" gap={2} minH="0">
+                    <Flex flex="1" minH="0" gap={2}>
+                        <Box
+                            ref={reactFlowWrapper}
+                            flex="1"
+                            minH="300px"
+                            border="1px solid"
+                            borderColor="gray.200"
+                            borderRadius="md"
+                            bg="gray.50"
+                            overflow="hidden"
+                        >
+                            <ReactFlow
+                                nodes={nodes}
+                                edges={edges}
+                                onNodesChange={handleNodesChange}
+                                onEdgesChange={handleEdgesChange}
+                                onConnect={onConnect}
+                                onNodeClick={onNodeClick}
+                                onInit={setReactFlowInstance}
+                                onDrop={onDrop}
+                                onDragOver={onDragOver}
+                                nodeTypes={nodeTypes}
+                                fitView
+                                defaultEdgeOptions={edgeOptions}
                             >
-                                <ReactFlow
-                                    nodes={nodes}
-                                    edges={edges}
-                                    onNodesChange={handleNodesChange}
-                                    onEdgesChange={handleEdgesChange}
-                                    onConnect={onConnect}
-                                    onNodeClick={onNodeClick}
-                                    onInit={setReactFlowInstance}
-                                    onDrop={onDrop}
-                                    onDragOver={onDragOver}
-                                    nodeTypes={nodeTypes}
-                                    fitView
-                                >
-                                    <Background />
-                                    <Controls />
-                                    <MiniMap />
-                                </ReactFlow>
-                            </Box>
-                        </GridItem>
+                                <Background />
+                                <Controls />
+                                <MiniMap />
+                            </ReactFlow>
+                        </Box>
 
-                        <GridItem>
+                        <Box w="320px" minW="300px" maxW="360px" h="100%" overflowY="auto">
                             <NodeEditor
                                 node={selectedNode}
                                 onUpdate={handleNodeUpdate}
+                                onDelete={handleNodeDelete}
                                 onClose={() => setSelectedNode(null)}
                                 allNodes={nodes as unknown as DiagramNode[]}
                             />
-                        </GridItem>
-                    </Grid>
-                </GridItem>
+                        </Box>
+                    </Flex>
 
-                <GridItem>
-                    <ExecutionResultPanel results={executionResults} />
-                </GridItem>
-            </Grid>
+                    <Box h="220px" minH="200px" overflowY="auto">
+                        <ExecutionResultPanel
+                            results={executionResults}
+                            getNodeLabel={(nodeId) => {
+                                const found = nodes.find((n) => n.id === nodeId);
+                                return (found as any)?.data?.label;
+                            }}
+                        />
+                    </Box>
+                </Flex>
+            </Flex>
         </Box>
     );
 };

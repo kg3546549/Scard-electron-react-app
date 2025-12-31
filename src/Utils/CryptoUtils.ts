@@ -7,6 +7,8 @@
  */
 
 import { CryptoAlgorithm, CryptoConfig } from '../types';
+import CryptoJS from 'crypto-js';
+import { KISA_SEED_CBC } from '@kr-yeon/kisa-seed';
 
 /**
  * Hex 문자열을 바이트 배열로 변환
@@ -42,16 +44,18 @@ export async function encryptData(data: string, config: CryptoConfig): Promise<s
         return data;
     }
 
-    // TODO: 실제 암호화 구현
-    // crypto-js 또는 Web Crypto API를 사용하여 구현 필요
-
-    console.warn(`Encryption with ${config.algorithm} is not yet implemented`);
-    console.log('Data:', data);
-    console.log('Key:', config.key);
-    console.log('IV:', config.iv);
-
-    // 현재는 데이터를 그대로 반환 (placeholder)
-    return data;
+    switch (config.algorithm) {
+        case CryptoAlgorithm.AES:
+            return encryptAES(data, config.key, config.iv);
+        case CryptoAlgorithm.DES:
+            return encryptDES(data, config.key, config.iv);
+        case CryptoAlgorithm.TRIPLE_DES:
+            return encrypt3DES(data, config.key, config.iv);
+        case CryptoAlgorithm.SEED:
+            return encryptSEED(data, config.key, config.iv);
+        default:
+            throw new Error(`Encryption for ${config.algorithm} is not supported. Use AES.`);
+    }
 }
 
 /**
@@ -66,16 +70,18 @@ export async function decryptData(encryptedData: string, config: CryptoConfig): 
         return encryptedData;
     }
 
-    // TODO: 실제 복호화 구현
-    // crypto-js 또는 Web Crypto API를 사용하여 구현 필요
-
-    console.warn(`Decryption with ${config.algorithm} is not yet implemented`);
-    console.log('Encrypted Data:', encryptedData);
-    console.log('Key:', config.key);
-    console.log('IV:', config.iv);
-
-    // 현재는 데이터를 그대로 반환 (placeholder)
-    return encryptedData;
+    switch (config.algorithm) {
+        case CryptoAlgorithm.AES:
+            return decryptAES(encryptedData, config.key, config.iv);
+        case CryptoAlgorithm.DES:
+            return decryptDES(encryptedData, config.key, config.iv);
+        case CryptoAlgorithm.TRIPLE_DES:
+            return decrypt3DES(encryptedData, config.key, config.iv);
+        case CryptoAlgorithm.SEED:
+            return decryptSEED(encryptedData, config.key, config.iv);
+        default:
+            throw new Error(`Decryption for ${config.algorithm} is not supported. Use AES.`);
+    }
 }
 
 /**
@@ -118,6 +124,146 @@ export function validateKey(algorithm: CryptoAlgorithm, key: string): boolean {
         default:
             return false;
     }
+}
+
+/**
+ * WebCrypto subtle 얻기
+ */
+function getSubtle(): SubtleCrypto {
+    if (typeof window !== 'undefined' && window.crypto?.subtle) {
+        return window.crypto.subtle;
+    }
+    if (typeof globalThis !== 'undefined' && (globalThis as any).crypto?.subtle) {
+        return (globalThis as any).crypto.subtle;
+    }
+    throw new Error('Web Crypto API is not available in this environment');
+}
+
+/**
+ * AES-CBC 암호화 (hex in/out)
+ */
+async function encryptAES(dataHex: string, keyHex: string, ivHex?: string): Promise<string> {
+    const dataBytes = hexToBytes(dataHex);
+    const keyBytes = hexToBytes(keyHex);
+    const ivBytes = ivHex ? hexToBytes(ivHex) : new Uint8Array(16);
+
+    if (![16, 24, 32].includes(keyBytes.length)) {
+        throw new Error('AES key must be 16/24/32 bytes');
+    }
+    if (ivBytes.length !== 16) {
+        throw new Error('AES IV must be 16 bytes');
+    }
+
+    const subtle = getSubtle();
+    const cryptoKey = await subtle.importKey('raw', keyBytes, { name: 'AES-CBC' }, false, ['encrypt']);
+    const encrypted = await subtle.encrypt({ name: 'AES-CBC', iv: ivBytes }, cryptoKey, dataBytes);
+    return bytesToHex(new Uint8Array(encrypted)).toUpperCase();
+}
+
+/**
+ * AES-CBC 복호화 (hex in/out)
+ */
+async function decryptAES(encHex: string, keyHex: string, ivHex?: string): Promise<string> {
+    const encBytes = hexToBytes(encHex);
+    const keyBytes = hexToBytes(keyHex);
+    const ivBytes = ivHex ? hexToBytes(ivHex) : new Uint8Array(16);
+
+    if (![16, 24, 32].includes(keyBytes.length)) {
+        throw new Error('AES key must be 16/24/32 bytes');
+    }
+    if (ivBytes.length !== 16) {
+        throw new Error('AES IV must be 16 bytes');
+    }
+
+    const subtle = getSubtle();
+    const cryptoKey = await subtle.importKey('raw', keyBytes, { name: 'AES-CBC' }, false, ['decrypt']);
+    const decrypted = await subtle.decrypt({ name: 'AES-CBC', iv: ivBytes }, cryptoKey, encBytes);
+    return bytesToHex(new Uint8Array(decrypted)).toUpperCase();
+}
+
+/**
+ * DES-CBC (crypto-js) hex in/out
+ */
+function encryptDES(dataHex: string, keyHex: string, ivHex?: string): string {
+    const key = CryptoJS.enc.Hex.parse(keyHex);
+    const iv = CryptoJS.enc.Hex.parse(ivHex || '0000000000000000');
+    const cipher = CryptoJS.DES.encrypt(CryptoJS.enc.Hex.parse(dataHex), key, {
+        iv,
+        mode: CryptoJS.mode.CBC,
+        padding: CryptoJS.pad.Pkcs7,
+    });
+    return cipher.ciphertext.toString(CryptoJS.enc.Hex).toUpperCase();
+}
+
+function decryptDES(encHex: string, keyHex: string, ivHex?: string): string {
+    const key = CryptoJS.enc.Hex.parse(keyHex);
+    const iv = CryptoJS.enc.Hex.parse(ivHex || '0000000000000000');
+    const plaintext = CryptoJS.DES.decrypt(
+        { ciphertext: CryptoJS.enc.Hex.parse(encHex) } as any,
+        key,
+        { iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 }
+    );
+    return plaintext.toString(CryptoJS.enc.Hex).toUpperCase();
+}
+
+/**
+ * 3DES-CBC (crypto-js) hex in/out
+ */
+function encrypt3DES(dataHex: string, keyHex: string, ivHex?: string): string {
+    const key = CryptoJS.enc.Hex.parse(keyHex);
+    const iv = CryptoJS.enc.Hex.parse(ivHex || '0000000000000000');
+    const cipher = CryptoJS.TripleDES.encrypt(CryptoJS.enc.Hex.parse(dataHex), key, {
+        iv,
+        mode: CryptoJS.mode.CBC,
+        padding: CryptoJS.pad.Pkcs7,
+    });
+    return cipher.ciphertext.toString(CryptoJS.enc.Hex).toUpperCase();
+}
+
+function decrypt3DES(encHex: string, keyHex: string, ivHex?: string): string {
+    const key = CryptoJS.enc.Hex.parse(keyHex);
+    const iv = CryptoJS.enc.Hex.parse(ivHex || '0000000000000000');
+    const plaintext = CryptoJS.TripleDES.decrypt(
+        { ciphertext: CryptoJS.enc.Hex.parse(encHex) } as any,
+        key,
+        { iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 }
+    );
+    return plaintext.toString(CryptoJS.enc.Hex).toUpperCase();
+}
+
+/**
+ * SEED-CBC (kisa-seed) hex in/out
+ */
+function encryptSEED(dataHex: string, keyHex: string, ivHex?: string): string {
+    const keyBytes = hexToBytes(keyHex);
+    const ivBytes = ivHex ? hexToBytes(ivHex) : new Uint8Array(16);
+
+    if (keyBytes.length !== 16) {
+        throw new Error('SEED key must be 16 bytes (32 hex chars)');
+    }
+    if (ivBytes.length !== 16) {
+        throw new Error('SEED IV must be 16 bytes (32 hex chars)');
+    }
+
+    const dataBytes = hexToBytes(dataHex);
+    const enc = KISA_SEED_CBC.SEED_CBC_Encrypt(keyBytes, ivBytes, dataBytes, 0, dataBytes.length);
+    return bytesToHex(enc).toUpperCase();
+}
+
+function decryptSEED(encHex: string, keyHex: string, ivHex?: string): string {
+    const keyBytes = hexToBytes(keyHex);
+    const ivBytes = ivHex ? hexToBytes(ivHex) : new Uint8Array(16);
+
+    if (keyBytes.length !== 16) {
+        throw new Error('SEED key must be 16 bytes (32 hex chars)');
+    }
+    if (ivBytes.length !== 16) {
+        throw new Error('SEED IV must be 16 bytes (32 hex chars)');
+    }
+
+    const encBytes = hexToBytes(encHex);
+    const dec = KISA_SEED_CBC.SEED_CBC_Decrypt(keyBytes, ivBytes, encBytes, 0, encBytes.length);
+    return bytesToHex(dec).toUpperCase();
 }
 
 /**

@@ -19,6 +19,7 @@ export const AppLayout: React.FC = () => {
                 ml={{ base: 0, md: 60 }}
                 flex="1"
                 p={4}
+                minH="100vh"
             >
                 <Outlet />
             </Box>

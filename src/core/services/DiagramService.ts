@@ -200,20 +200,50 @@ export class DiagramService {
                 const node = this.currentDiagram.nodes.find(n => n.id === nodeId);
                 if (!node) continue;
 
+                // Crypto 노드에서 pipeConfig가 비어 있고, 그래프 상 이전 노드가 있으면 자동으로 첫 번째 입력 엣지를 소스로 설정
+                const nodeType = (node.data as any)?.type || node.type;
+                if (
+                    (nodeType === 'ENCRYPT_DATA' || nodeType === 'DECRYPT_DATA') &&
+                    !node.data.pipeConfig
+                ) {
+                    const incoming = this.currentDiagram.edges.filter((e) => e.target === nodeId);
+                    if (incoming.length > 0) {
+                        node.data.pipeConfig = {
+                            sourceNodeId: incoming[0].source,
+                            dataOffset: 0,
+                            dataLength: -1,
+                        };
+                    }
+                }
+
                 const startTime = Date.now();
 
                 try {
                     // 노드 실행 (이전 노드 맵 전달)
                     const response = await this.nodeExecutor.executeNode(node, previousNodes);
+                    // APDU 명령 원본 저장 (NodeExecutor에서 처리된 파라미터 기반)
+                    if ((node.data as any)?.lastCommandHex) {
+                        (response as any).command = (node.data as any).lastCommandHex;
+                    }
+
+                    const responseSuccess =
+                        (response as any)?.success !== undefined
+                            ? Boolean((response as any).success)
+                            : true;
+                    const statusCode = (response as any)?.statusCode;
+                    const isStatusOk = statusCode ? statusCode === '9000' : true;
+                    const finalSuccess = responseSuccess && isStatusOk;
+                    const errorMsg = finalSuccess ? undefined : `SW=${statusCode || 'UNKNOWN'}`;
 
                     // 노드 데이터 업데이트
                     node.data.response = response;
-                    node.data.executed = true;
-                    node.data.error = undefined;
+                    node.data.executed = finalSuccess;
+                    node.data.error = errorMsg;
 
                     const result: NodeExecutionResult = {
                         nodeId,
-                        success: true,
+                        success: finalSuccess,
+                        error: errorMsg,
                         response,
                         executionTime: Date.now() - startTime,
                     };

@@ -34,11 +34,12 @@ import { PipeConfigEditor } from './PipeConfigEditor';
 interface NodeEditorProps {
     node: DiagramNode | null;
     onUpdate: (nodeId: string, updates: Partial<DiagramNode>) => void;
+    onDelete: (nodeId: string) => void;
     onClose: () => void;
     allNodes?: DiagramNode[];
 }
 
-export const NodeEditor: React.FC<NodeEditorProps> = ({ node, onUpdate, onClose, allNodes = [] }) => {
+export const NodeEditor: React.FC<NodeEditorProps> = ({ node, onUpdate, onDelete, onClose, allNodes = [] }) => {
     const [label, setLabel] = useState('');
     const [parameters, setParameters] = useState<NodeParameter[]>([]);
     const [cryptoAlgorithm, setCryptoAlgorithm] = useState<CryptoAlgorithm>(CryptoAlgorithm.NONE);
@@ -49,7 +50,14 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({ node, onUpdate, onClose,
     useEffect(() => {
         if (node) {
             setLabel(node.data.label);
-            setParameters(node.data.parameters || []);
+            const params = node.data.parameters || [];
+            const effectiveType = (node.data as any)?.type || node.type;
+            // APDU 노드인데 파라미터가 없으면 기본값 로드
+            if (params.length === 0 && effectiveType) {
+                setParameters(getDefaultParametersForType(effectiveType));
+            } else {
+                setParameters(params);
+            }
             setCryptoAlgorithm(node.data.cryptoConfig?.algorithm || CryptoAlgorithm.NONE);
             setCryptoKey(node.data.cryptoConfig?.key || '');
             setCryptoIv(node.data.cryptoConfig?.iv || '');
@@ -68,17 +76,19 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({ node, onUpdate, onClose,
     }
 
     const handleSave = () => {
+        const effectiveType = (node.data as any)?.type || node.type;
+        const isCrypto = effectiveType === DiagramNodeType.ENCRYPT_DATA || effectiveType === DiagramNodeType.DECRYPT_DATA;
         const updates: Partial<DiagramNode> = {
             data: {
                 ...node.data,
                 label,
-                parameters,
-                cryptoConfig: cryptoAlgorithm !== CryptoAlgorithm.NONE ? {
+                parameters: isCrypto ? [] : parameters,
+                cryptoConfig: isCrypto && cryptoAlgorithm !== CryptoAlgorithm.NONE ? {
                     algorithm: cryptoAlgorithm,
                     key: cryptoKey,
                     iv: cryptoIv,
                 } : undefined,
-                pipeConfig,
+                pipeConfig: isCrypto ? pipeConfig : node.data.pipeConfig,
             },
         };
         onUpdate(node.id, updates);
@@ -182,12 +192,13 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({ node, onUpdate, onClose,
             .filter(n => n.id !== node.id) // Exclude current node
             .map(n => ({
                 id: n.id,
-                label: n.data.label || n.type,
+                label: n.data.label || (n.data as any).type || n.type,
             }));
     };
 
-    const isCryptoNode = node?.type === DiagramNodeType.ENCRYPT_DATA || node?.type === DiagramNodeType.DECRYPT_DATA;
-    const isAPDUNode = !isCryptoNode; // All non-crypto nodes are APDU nodes
+    const effectiveType = (node?.data as any)?.type || node?.type;
+    const isCryptoNode = effectiveType === DiagramNodeType.ENCRYPT_DATA || effectiveType === DiagramNodeType.DECRYPT_DATA;
+    const isAPDUNode = !isCryptoNode;
 
     const loadDefaultParameters = () => {
         setParameters(getDefaultParametersForType(node.type));
@@ -203,6 +214,10 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({ node, onUpdate, onClose,
         const index = parameters.findIndex(p => p.name === name);
         if (index >= 0) {
             updateParameter(index, 'value', value);
+        } else {
+            // 파라미터 없으면 새로 추가
+            const newParam: NodeParameter = { name, value, type: 'hex', description: '' };
+            setParameters([...parameters, newParam]);
         }
     };
 
@@ -211,9 +226,14 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({ node, onUpdate, onClose,
             <CardHeader>
                 <HStack justify="space-between">
                     <Heading size="sm">Node Editor</Heading>
-                    <Button size="sm" leftIcon={<FaSave />} colorScheme="blue" onClick={handleSave}>
-                        Save
-                    </Button>
+                    <HStack>
+                        <Button size="sm" leftIcon={<FaTrash />} colorScheme="red" variant="outline" onClick={() => onDelete(node.id)}>
+                            Delete
+                        </Button>
+                        <Button size="sm" leftIcon={<FaSave />} colorScheme="blue" onClick={handleSave}>
+                            Save
+                        </Button>
+                    </HStack>
                 </HStack>
             </CardHeader>
 
