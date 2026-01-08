@@ -180,7 +180,10 @@ export class DiagramService {
     /**
      * 다이어그램 실행
      */
-    async executeDiagram(options: DiagramExecutionOptions): Promise<NodeExecutionResult[]> {
+    async executeDiagram(
+        options: DiagramExecutionOptions,
+        onNodeResult?: (results: NodeExecutionResult[]) => void
+    ): Promise<NodeExecutionResult[]> {
         if (!this.currentDiagram) {
             throw new Error('No active diagram');
         }
@@ -265,6 +268,7 @@ export class DiagramService {
                     };
 
                     results.push(result);
+                    if (onNodeResult) onNodeResult([...results]);
 
                     // 실행된 노드를 맵에 저장 (암복호화 파이프용)
                     previousNodes.set(nodeId, node);
@@ -289,6 +293,7 @@ export class DiagramService {
                     };
 
                     results.push(result);
+                    if (onNodeResult) onNodeResult([...results]);
 
                     // 에러 시 중단 옵션
                     if (options.stopOnError) {

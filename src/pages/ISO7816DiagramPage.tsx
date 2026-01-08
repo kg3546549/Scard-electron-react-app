@@ -60,6 +60,18 @@ const syncNodeIdCounter = (nodes: Node[]) => {
     nodeId = maxId + 1;
 };
 
+const normalizeFlowNode = (node: Node): Node => {
+    const dataType = (node.data as any)?.type ?? node.type;
+    return {
+        ...node,
+        type: 'apduNode',
+        data: {
+            ...node.data,
+            type: dataType,
+        },
+    };
+};
+
 const DiagramPageContent: React.FC = () => {
     const toast = useToast();
     const reactFlowWrapper = useRef<HTMLDivElement>(null);
@@ -305,15 +317,17 @@ const DiagramPageContent: React.FC = () => {
             const { currentDiagram: latestDiagram } = useDiagramStore.getState();
             if (latestDiagram) {
                 // reset execution states on load
-                const loadedNodes = (latestDiagram.nodes as Node[]).map((n) => ({
-                    ...n,
-                    data: {
-                        ...n.data,
-                        executed: false,
-                        error: undefined,
-                        response: undefined,
-                    },
-                }));
+                const loadedNodes = (latestDiagram.nodes as Node[]).map((n) =>
+                    normalizeFlowNode({
+                        ...n,
+                        data: {
+                            ...n.data,
+                            executed: false,
+                            error: undefined,
+                            response: undefined,
+                        },
+                    })
+                );
                 syncNodeIdCounter(loadedNodes);
                 setNodes(loadedNodes);
                 setEdges((latestDiagram.edges as Edge[]).map((e) => ({ deletable: true, ...e })));
@@ -341,15 +355,22 @@ const DiagramPageContent: React.FC = () => {
             nds.map((node) => {
                 const result = executionResults.find((r) => r.nodeId === node.id);
                 if (!result) return node;
-                const isErrorStatus = !!result.response && result.response.statusCode && result.response.statusCode !== '9000';
-                const hasError = result.success === false || isErrorStatus;
+                const statusCode =
+                    (result.response as any)?.statusCode || (result.response as any)?._statusCode;
+                const responseSuccess =
+                    result.response?.success !== undefined
+                        ? Boolean(result.response?.success)
+                        : true;
+                const isErrorStatus = !!statusCode && String(statusCode).toUpperCase() !== '9000';
+                const hasError = result.success === false || !responseSuccess || isErrorStatus;
                 return {
                     ...node,
                     data: {
                         ...node.data,
                         executed: !hasError,
-                        error: hasError ? (result.error || `SW=${result.response?.statusCode || ''}`) : undefined,
+                        error: hasError ? (result.error || `SW=${statusCode || ''}`) : undefined,
                         response: result.response,
+                        processedData: result.outputData,
                     },
                 };
             })
@@ -439,6 +460,7 @@ const DiagramPageContent: React.FC = () => {
                     <Box h="220px" minH="200px" overflowY="auto">
                         <ExecutionResultPanel
                             results={executionResults}
+                            totalNodes={nodes.length}
                             getNodeLabel={(nodeId) => {
                                 const found = nodes.find((n) => n.id === nodeId);
                                 return (found as any)?.data?.label;

@@ -168,10 +168,12 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
 
     executeDiagram: async (options: DiagramExecutionOptions) => {
         const { service } = get();
-        set({ executionStatus: DiagramExecutionStatus.RUNNING, error: null });
+        set({ executionStatus: DiagramExecutionStatus.RUNNING, executionResults: [], error: null });
 
         try {
-            const results = await service.executeDiagram(options);
+            const results = await service.executeDiagram(options, (liveResults) => {
+                set({ executionResults: liveResults, executionStatus: DiagramExecutionStatus.RUNNING });
+            });
             const executionStatus = service.getExecutionStatus();
             set({
                 executionResults: results,

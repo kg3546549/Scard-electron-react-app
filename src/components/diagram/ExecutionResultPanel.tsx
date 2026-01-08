@@ -25,6 +25,7 @@ import {
     AccordionButton,
     AccordionPanel,
     AccordionIcon,
+    Progress,
 } from '@chakra-ui/react';
 import { NodeExecutionResult } from '../../types';
 import { APDUCommand } from '../../types/apdu.types';
@@ -32,9 +33,10 @@ import { APDUCommand } from '../../types/apdu.types';
 interface ExecutionResultPanelProps {
     results: NodeExecutionResult[];
     getNodeLabel?: (nodeId: string) => string | undefined;
+    totalNodes?: number;
 }
 
-export const ExecutionResultPanel: React.FC<ExecutionResultPanelProps> = ({ results, getNodeLabel }) => {
+export const ExecutionResultPanel: React.FC<ExecutionResultPanelProps> = ({ results, getNodeLabel, totalNodes = 0 }) => {
     if (results.length === 0) {
         return (
             <Card h="100%">
@@ -51,6 +53,7 @@ export const ExecutionResultPanel: React.FC<ExecutionResultPanelProps> = ({ resu
     const lastSuccessWithData = [...results].reverse().find(
         (r) => r.success && r.outputData
     );
+    const progressValue = totalNodes > 0 ? Math.min(100, Math.round((results.length / totalNodes) * 100)) : 0;
 
     return (
         <Card h="100%" overflowY="auto">
@@ -63,6 +66,14 @@ export const ExecutionResultPanel: React.FC<ExecutionResultPanelProps> = ({ resu
                         <Badge colorScheme="blue">Total: {results.length}</Badge>
                         <Badge colorScheme="purple">Time: {totalTime}ms</Badge>
                     </HStack>
+                    {totalNodes > 0 && (
+                        <Box>
+                            <Text fontSize="xs" fontWeight="bold" mb={1}>
+                                Progress {results.length}/{totalNodes}
+                            </Text>
+                            <Progress size="sm" value={progressValue} colorScheme="blue" borderRadius="md" />
+                        </Box>
+                    )}
                     {lastSuccessWithData && (
                         <Box>
                             <Text fontSize="xs" fontWeight="bold" mb={1}>
