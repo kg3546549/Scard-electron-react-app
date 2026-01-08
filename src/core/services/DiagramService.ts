@@ -12,6 +12,7 @@ import {
     DiagramExecutionOptions,
     DiagramExecutionStatus,
 } from '../../types';
+import { convertDiagramV2ToLegacy, convertDiagramLegacyToV2 } from './DiagramV2Converter';
 import { ISO7816Service } from './ISO7816Service';
 import { NodeExecutor } from './NodeExecutor';
 
@@ -68,7 +69,7 @@ export class DiagramService {
         console.log('Nodes count:', this.currentDiagram.nodes?.length);
         console.log('Edges count:', this.currentDiagram.edges?.length);
 
-        const jsonData = JSON.stringify(this.currentDiagram, null, 2);
+        const jsonData = JSON.stringify(convertDiagramLegacyToV2(this.currentDiagram), null, 2);
         console.log('JSON data length:', jsonData.length);
         console.log('JSON data preview:', jsonData.substring(0, 200));
 
@@ -101,7 +102,11 @@ export class DiagramService {
             throw new Error('File loading not supported in browser environment');
         }
 
-        const diagramData: DiagramData = JSON.parse(jsonData);
+        const parsed = JSON.parse(jsonData);
+        const diagramData: DiagramData =
+            parsed && parsed.schemaVersion === 2
+                ? convertDiagramV2ToLegacy(parsed)
+                : (parsed as DiagramData);
         this.loadDiagram(diagramData);
         return diagramData;
     }
@@ -183,6 +188,7 @@ export class DiagramService {
         this.executionStatus = DiagramExecutionStatus.RUNNING;
         const results: NodeExecutionResult[] = [];
         const previousNodes = new Map<string, DiagramNode>();
+        const variables = new Map<string, string>();
 
         try {
             // 카드 연결을 한 번 보장해 APDU 실행 실패를 방지
@@ -220,7 +226,7 @@ export class DiagramService {
 
                 try {
                     // 노드 실행 (이전 노드 맵 전달)
-                    const response = await this.nodeExecutor.executeNode(node, previousNodes);
+                    const response = await this.nodeExecutor.executeNode(node, previousNodes, variables);
                     // APDU 명령 원본 저장 (NodeExecutor에서 처리된 파라미터 기반)
                     if ((node.data as any)?.lastCommandHex) {
                         (response as any).command = (node.data as any).lastCommandHex;
@@ -246,6 +252,16 @@ export class DiagramService {
                         error: errorMsg,
                         response,
                         executionTime: Date.now() - startTime,
+                        variablesSnapshot: Object.fromEntries(variables),
+                        outputData:
+                            nodeType === 'ENCRYPT_DATA' || nodeType === 'DECRYPT_DATA' || nodeType === 'CONCAT_DATA'
+                                ? (node.data.processedData || (node.data as any).cryptoMeta?.output || response?.data)
+                                : response?.data,
+                        nodeType: nodeType as any,
+                        cryptoInput: (node.data as any).cryptoMeta?.input,
+                        cryptoKey: (node.data as any).cryptoMeta?.key,
+                        cryptoIv: (node.data as any).cryptoMeta?.iv,
+                        cryptoOutput: (node.data as any).cryptoMeta?.output,
                     };
 
                     results.push(result);
@@ -267,6 +283,9 @@ export class DiagramService {
                         success: false,
                         error: (error as Error).message,
                         executionTime: Date.now() - startTime,
+                        variablesSnapshot: Object.fromEntries(variables),
+                        outputData: undefined,
+                        nodeType: nodeType as any,
                     };
 
                     results.push(result);

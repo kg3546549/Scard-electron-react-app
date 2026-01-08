@@ -7,3 +7,4 @@ export * from './card.types';
 export * from './apdu.types';
 export * from './driver.types';
 export * from './diagram.types';
+export * from './diagram.v2.types';

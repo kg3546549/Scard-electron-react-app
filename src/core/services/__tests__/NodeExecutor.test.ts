@@ -29,7 +29,7 @@ describe('NodeExecutor', () => {
                 success: true,
             };
 
-            mockISO7816Service.selectAID = jest.fn().mockResolvedValue(mockResponse);
+            mockISO7816Service.sendQuickCommand = jest.fn().mockResolvedValue(mockResponse);
 
             const node = {
                 id: 'node-1',
@@ -38,7 +38,12 @@ describe('NodeExecutor', () => {
                 data: {
                     label: 'Select AID',
                     parameters: [
-                        { name: 'AID', value: 'A0000000031010', type: 'hex' as const },
+                        { name: 'CLA', value: '00', type: 'hex' as const },
+                        { name: 'INS', value: 'A4', type: 'hex' as const },
+                        { name: 'P1', value: '04', type: 'hex' as const },
+                        { name: 'P2', value: '00', type: 'hex' as const },
+                        { name: 'Data', value: 'A0000000031010', type: 'hex' as const },
+                        { name: 'Le', value: '00', type: 'hex' as const },
                     ],
                     executed: false,
                 },
@@ -46,7 +51,7 @@ describe('NodeExecutor', () => {
 
             const response = await nodeExecutor.executeNode(node);
 
-            expect(mockISO7816Service.selectAID).toHaveBeenCalledWith('A0000000031010');
+            expect(mockISO7816Service.sendQuickCommand).toHaveBeenCalledWith('00A4040007A000000003101000');
             expect(response.success).toBe(true);
             expect(response.statusCode).toBe('9000');
         });
@@ -58,7 +63,14 @@ describe('NodeExecutor', () => {
                 position: { x: 0, y: 0 },
                 data: {
                     label: 'Select AID',
-                    parameters: [],
+                    parameters: [
+                        { name: 'CLA', value: '00', type: 'hex' as const },
+                        { name: 'INS', value: 'A4', type: 'hex' as const },
+                        { name: 'P1', value: '04', type: 'hex' as const },
+                        { name: 'P2', value: '00', type: 'hex' as const },
+                        { name: 'Data', value: '', type: 'hex' as const },
+                        { name: 'Le', value: '00', type: 'hex' as const },
+                    ],
                     executed: false,
                 },
             };
@@ -79,7 +91,7 @@ describe('NodeExecutor', () => {
                 success: true,
             };
 
-            mockISO7816Service.getChallenge = jest.fn().mockResolvedValue(mockResponse);
+            mockISO7816Service.sendQuickCommand = jest.fn().mockResolvedValue(mockResponse);
 
             const node = {
                 id: 'node-2',
@@ -87,14 +99,21 @@ describe('NodeExecutor', () => {
                 position: { x: 0, y: 0 },
                 data: {
                     label: 'Get Challenge',
-                    parameters: [],
+                    parameters: [
+                        { name: 'CLA', value: '00', type: 'hex' as const },
+                        { name: 'INS', value: '84', type: 'hex' as const },
+                        { name: 'P1', value: '00', type: 'hex' as const },
+                        { name: 'P2', value: '00', type: 'hex' as const },
+                        { name: 'Data', value: '', type: 'hex' as const },
+                        { name: 'Le', value: '08', type: 'hex' as const },
+                    ],
                     executed: false,
                 },
             };
 
             const response = await nodeExecutor.executeNode(node);
 
-            expect(mockISO7816Service.getChallenge).toHaveBeenCalledWith(8);
+            expect(mockISO7816Service.sendQuickCommand).toHaveBeenCalledWith('0084000008');
             expect(response.success).toBe(true);
         });
 
@@ -107,7 +126,7 @@ describe('NodeExecutor', () => {
                 success: true,
             };
 
-            mockISO7816Service.getChallenge = jest.fn().mockResolvedValue(mockResponse);
+            mockISO7816Service.sendQuickCommand = jest.fn().mockResolvedValue(mockResponse);
 
             const node = {
                 id: 'node-2',
@@ -116,7 +135,12 @@ describe('NodeExecutor', () => {
                 data: {
                     label: 'Get Challenge',
                     parameters: [
-                        { name: 'Length', value: '10', type: 'hex' as const },
+                        { name: 'CLA', value: '00', type: 'hex' as const },
+                        { name: 'INS', value: '84', type: 'hex' as const },
+                        { name: 'P1', value: '00', type: 'hex' as const },
+                        { name: 'P2', value: '00', type: 'hex' as const },
+                        { name: 'Data', value: '', type: 'hex' as const },
+                        { name: 'Le', value: '10', type: 'hex' as const },
                     ],
                     executed: false,
                 },
@@ -124,7 +148,7 @@ describe('NodeExecutor', () => {
 
             const response = await nodeExecutor.executeNode(node);
 
-            expect(mockISO7816Service.getChallenge).toHaveBeenCalledWith(16);
+            expect(mockISO7816Service.sendQuickCommand).toHaveBeenCalledWith('0084000010');
             expect(response.success).toBe(true);
         });
     });
@@ -195,7 +219,7 @@ describe('NodeExecutor', () => {
                 success: true,
             };
 
-            mockISO7816Service.readRecord = jest.fn().mockResolvedValue(mockResponse);
+            mockISO7816Service.sendQuickCommand = jest.fn().mockResolvedValue(mockResponse);
 
             const node = {
                 id: 'node-4',
@@ -203,14 +227,21 @@ describe('NodeExecutor', () => {
                 position: { x: 0, y: 0 },
                 data: {
                     label: 'Read Record',
-                    parameters: [],
+                    parameters: [
+                        { name: 'CLA', value: '00', type: 'hex' as const },
+                        { name: 'INS', value: 'B2', type: 'hex' as const },
+                        { name: 'P1', value: '01', type: 'hex' as const },
+                        { name: 'P2', value: '04', type: 'hex' as const },
+                        { name: 'Data', value: '', type: 'hex' as const },
+                        { name: 'Le', value: '00', type: 'hex' as const },
+                    ],
                     executed: false,
                 },
             };
 
             const response = await nodeExecutor.executeNode(node);
 
-            expect(mockISO7816Service.readRecord).toHaveBeenCalledWith(1, 0);
+            expect(mockISO7816Service.sendQuickCommand).toHaveBeenCalledWith('00B2010400');
             expect(response.success).toBe(true);
         });
     });
@@ -225,7 +256,7 @@ describe('NodeExecutor', () => {
                 success: true,
             };
 
-            mockISO7816Service.readBinary = jest.fn().mockResolvedValue(mockResponse);
+            mockISO7816Service.sendQuickCommand = jest.fn().mockResolvedValue(mockResponse);
 
             const node = {
                 id: 'node-5',
@@ -234,8 +265,14 @@ describe('NodeExecutor', () => {
                 data: {
                     label: 'Read Binary',
                     parameters: [
+                        { name: 'CLA', value: '00', type: 'hex' as const },
+                        { name: 'INS', value: 'B0', type: 'hex' as const },
+                        { name: 'P1', value: '00', type: 'hex' as const },
+                        { name: 'P2', value: '10', type: 'hex' as const },
                         { name: 'Offset', value: '0010', type: 'hex' as const },
                         { name: 'Length', value: '20', type: 'hex' as const },
+                        { name: 'Data', value: '', type: 'hex' as const },
+                        { name: 'Le', value: '20', type: 'hex' as const },
                     ],
                     executed: false,
                 },
@@ -243,7 +280,7 @@ describe('NodeExecutor', () => {
 
             const response = await nodeExecutor.executeNode(node);
 
-            expect(mockISO7816Service.readBinary).toHaveBeenCalledWith(16, 32);
+            expect(mockISO7816Service.sendQuickCommand).toHaveBeenCalledWith('00B0001020');
             expect(response.success).toBe(true);
         });
     });

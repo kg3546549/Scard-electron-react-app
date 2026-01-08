@@ -18,6 +18,7 @@ export enum DiagramNodeType {
     CUSTOM_APDU = 'CUSTOM_APDU',
     ENCRYPT_DATA = 'ENCRYPT_DATA',
     DECRYPT_DATA = 'DECRYPT_DATA',
+    CONCAT_DATA = 'CONCAT_DATA',
 }
 
 /**
@@ -60,7 +61,21 @@ export interface PipeConfig {
     segments?: Array<{
         dataOffset: number;
         dataLength: number;
-    }>; // 다중 구간 파이프 지원
+    }>;
+    priority?: 'pipe' | 'variable';
+}
+
+export interface VariableSaveConfig {
+    name: string;
+    source: 'response' | 'processedData';
+    dataOffset: number;
+    dataLength: number; // -1 = 전체
+}
+
+export interface VariableUseConfig {
+    dataVar?: string;
+    keyVar?: string;
+    ivVar?: string;
 }
 
 /**
@@ -76,10 +91,15 @@ export interface DiagramNode {
         parameters: NodeParameter[];
         cryptoConfig?: CryptoConfig;
         pipeConfig?: PipeConfig;
+        pipeConfigB?: PipeConfig; // CONCAT_DATA 보조 파이프
+        variableConfig?: {
+            save?: VariableSaveConfig[];
+            use?: VariableUseConfig;
+        };
         response?: APDUResponse;
         executed: boolean;
         error?: string;
-        processedData?: string; // 암복호화된 데이터 저장
+        processedData?: string;
     };
 }
 
@@ -88,8 +108,8 @@ export interface DiagramNode {
  */
 export interface DiagramEdge {
     id: string;
-    source: string; // 소스 노드 ID
-    target: string; // 타겟 노드 ID
+    source: string;
+    target: string;
     type?: 'default' | 'success' | 'error';
 }
 
@@ -114,7 +134,14 @@ export interface NodeExecutionResult {
     success: boolean;
     response?: APDUResponse;
     error?: string;
-    executionTime: number; // 밀리초
+    executionTime: number;
+    variablesSnapshot?: Record<string, string>;
+    outputData?: string;
+    nodeType?: DiagramNodeType;
+    cryptoInput?: string;
+    cryptoKey?: string;
+    cryptoIv?: string;
+    cryptoOutput?: string;
 }
 
 /**
@@ -122,7 +149,7 @@ export interface NodeExecutionResult {
  */
 export interface DiagramExecutionOptions {
     stopOnError: boolean;
-    delay?: number; // 노드 간 지연 시간 (밀리초)
+    delay?: number;
 }
 
 /**

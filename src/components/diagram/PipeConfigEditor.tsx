@@ -33,6 +33,7 @@ export const PipeConfigEditor: React.FC<PipeConfigEditorProps> = ({
             dataOffset: pipeConfig?.dataOffset || 0,
             dataLength: pipeConfig?.dataLength || -1,
             segments: pipeConfig?.segments,
+            priority: pipeConfig?.priority || 'pipe',
             [field]: value,
         };
         onChange(newConfig);
@@ -50,6 +51,7 @@ export const PipeConfigEditor: React.FC<PipeConfigEditorProps> = ({
             dataOffset: segments[0]?.dataOffset ?? pipeConfig?.dataOffset ?? 0,
             dataLength: segments[0]?.dataLength ?? pipeConfig?.dataLength ?? -1,
             segments,
+            priority: pipeConfig?.priority || 'pipe',
         };
         onChange(newConfig);
     };
@@ -68,15 +70,16 @@ export const PipeConfigEditor: React.FC<PipeConfigEditorProps> = ({
 
     const removeSegment = (index: number) => {
         const segments = pipeConfig?.segments ? [...pipeConfig.segments] : [];
-        segments.splice(index, 1);
-        const newConfig: PipeConfig = {
-            sourceNodeId: pipeConfig?.sourceNodeId || '',
-            dataOffset: segments[0]?.dataOffset ?? 0,
-            dataLength: segments[0]?.dataLength ?? -1,
-            segments: segments.length > 0 ? segments : undefined,
+            segments.splice(index, 1);
+            const newConfig: PipeConfig = {
+                sourceNodeId: pipeConfig?.sourceNodeId || '',
+                dataOffset: segments[0]?.dataOffset ?? 0,
+                dataLength: segments[0]?.dataLength ?? -1,
+                segments: segments.length > 0 ? segments : undefined,
+                priority: pipeConfig?.priority || 'pipe',
+            };
+            onChange(newConfig);
         };
-        onChange(newConfig);
-    };
 
     const segments = pipeConfig?.segments || [{ dataOffset: pipeConfig?.dataOffset || 0, dataLength: pipeConfig?.dataLength ?? -1 }];
 
@@ -105,6 +108,21 @@ export const PipeConfigEditor: React.FC<PipeConfigEditorProps> = ({
                         </option>
                     ))}
                 </Select>
+            </FormControl>
+
+            <FormControl>
+                <FormLabel fontSize="sm">Source Priority</FormLabel>
+                <Select
+                    size="sm"
+                    value={pipeConfig?.priority || 'pipe'}
+                    onChange={(e) => handleChange('priority', e.target.value as any)}
+                >
+                    <option value="pipe">Pipe first</option>
+                    <option value="variable">Variable first</option>
+                </Select>
+                <Text fontSize="xs" color="gray.500" mt={1}>
+                    pipe = slices from source node, variable = use bound variable before pipe
+                </Text>
             </FormControl>
 
             {/* Multi-segment support */}

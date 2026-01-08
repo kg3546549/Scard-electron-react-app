@@ -1,9 +1,9 @@
 /**
  * Node Executor
- * 다이어그램 노드 실행 엔진 - 노드 타입별 APDU 실행
+ * 다이어그램 노드 실행 엔진 - 노드 타입별 APDU 실행 + 파이프/변수 처리
  */
 
-import { DiagramNode, DiagramNodeType, NodeParameter, APDUResponse } from '../../types';
+import { DiagramNode, DiagramNodeType, NodeParameter, APDUResponse, PipeConfig, CryptoConfig } from '../../types';
 import { ISO7816Service } from './ISO7816Service';
 import { encryptData, decryptData, validateCryptoConfig } from '../../Utils/CryptoUtils';
 
@@ -17,14 +17,20 @@ export class NodeExecutor {
     /**
      * 노드 실행
      */
-    async executeNode(node: DiagramNode, previousNodes?: Map<string, DiagramNode>): Promise<APDUResponse> {
+    async executeNode(
+        node: DiagramNode,
+        previousNodes?: Map<string, DiagramNode>,
+        variables?: Map<string, string>
+    ): Promise<APDUResponse> {
         const nodeType = (node as any)?.data?.type || node.type;
 
         switch (nodeType) {
             case DiagramNodeType.ENCRYPT_DATA:
-                return this.executeEncryptData(node, previousNodes);
+                return this.executeEncryptData(node, previousNodes, variables);
             case DiagramNodeType.DECRYPT_DATA:
-                return this.executeDecryptData(node, previousNodes);
+                return this.executeDecryptData(node, previousNodes, variables);
+            case DiagramNodeType.CONCAT_DATA:
+                return this.executeConcatData(node, previousNodes, variables);
             // All APDU nodes are now handled as CUSTOM_APDU with preset values
             case DiagramNodeType.SELECT_AID:
             case DiagramNodeType.GET_CHALLENGE:
@@ -33,7 +39,7 @@ export class NodeExecutor {
             case DiagramNodeType.READ_RECORD:
             case DiagramNodeType.READ_BINARY:
             case DiagramNodeType.CUSTOM_APDU:
-                return this.executeAPDUCommand(node, previousNodes);
+                return this.executeAPDUCommand(node, previousNodes, variables);
             default:
                 throw new Error(`Unknown node type: ${node.type}`);
         }
@@ -44,7 +50,12 @@ export class NodeExecutor {
      * 모든 APDU 노드는 CLA, INS, P1, P2, Data, Le 파라미터를 가지며
      * 노드 타입은 단지 기본값(preset)만 다름
      */
-    private async executeAPDUCommand(node: DiagramNode, previousNodes?: Map<string, DiagramNode>): Promise<APDUResponse> {
+    private async executeAPDUCommand(
+        node: DiagramNode,
+        previousNodes?: Map<string, DiagramNode>,
+        variables?: Map<string, string>
+    ): Promise<APDUResponse> {
+        const nodeType = (node as any)?.data?.type || node.type;
         const claParam = this.getParameter(node, 'CLA');
         const insParam = this.getParameter(node, 'INS');
         const p1Param = this.getParameter(node, 'P1');
@@ -55,18 +66,26 @@ export class NodeExecutor {
             throw new Error('CLA, INS, P1, P2 parameters are required');
         }
 
-        // 파이프 데이터 우선 사용 (pipeConfig가 없으면 직전 실행 노드 데이터 사용)
+        // 변수/파이프/수동 데이터 순서
         let data = '';
-        const pipeConfig = this.resolvePipeConfig(node, previousNodes, {
-            allowDefault: true,
-            preferCryptoSource: true, // APDU 노드는 암복호화 노드 출력만 기본 파이프 소스로 삼는다
-        });
-        if (pipeConfig && previousNodes) {
+        const varUse = node.data.variableConfig?.use;
+        const priority = node.data.pipeConfig?.priority || 'pipe';
+
+        if (varUse?.dataVar && variables?.has(varUse.dataVar)) {
+            data = variables.get(varUse.dataVar) || '';
+        }
+
+        const pipeConfig = node.data.pipeConfig;
+        if (!data && pipeConfig && previousNodes && priority === 'pipe') {
             data = this.extractPipeDataFromConfig(pipeConfig, previousNodes);
         }
         if (!data) {
             const dataParam = this.getParameter(node, 'Data');
             data = dataParam?.value || '';
+        }
+
+        if (nodeType === DiagramNodeType.SELECT_AID && !data) {
+            throw new Error('AID parameter is required');
         }
 
         const commandHex = this.buildAPDUCommand(
@@ -81,7 +100,12 @@ export class NodeExecutor {
         // 실행된 APDU를 노드에 기록해 결과 패널에 표시
         (node.data as any).lastCommandHex = commandHex;
 
-        return this.iso7816Service.sendQuickCommand(commandHex);
+        const response = await this.iso7816Service.sendQuickCommand(commandHex);
+
+        // 변수 저장
+        this.saveVariables(node, response, variables);
+
+        return response;
     }
 
     /**
@@ -117,46 +141,184 @@ export class NodeExecutor {
     }
 
     /**
-     * 암호화 처리
+     * ENCRYPT_DATA 실행
      */
-    private async applyCrypto(data: string, node: DiagramNode): Promise<string> {
-        if (!node.data.cryptoConfig) {
-            return data;
+    private async executeEncryptData(
+        node: DiagramNode,
+        previousNodes?: Map<string, DiagramNode>,
+        variables?: Map<string, string>
+    ): Promise<APDUResponse> {
+        // 데이터 소스: 변수 > 파이프
+        let sourceData = '';
+        const varUse = node.data.variableConfig?.use;
+        if (varUse?.dataVar && variables?.has(varUse.dataVar)) {
+            sourceData = variables.get(varUse.dataVar) || '';
+        }
+        if (!sourceData) {
+            const pipeConfig = this.resolvePipeConfig(node, previousNodes, { allowDefault: true });
+            if (!pipeConfig) {
+                throw new Error('No source node for encryption pipe');
+            }
+            sourceData = this.extractPipeDataFromConfig(pipeConfig, previousNodes);
+        }
+        if (!sourceData) {
+            const dataParam = this.getParameter(node, 'Data');
+            sourceData = dataParam?.value || '';
         }
 
-        // 암호화 설정 검증
-        const validation = validateCryptoConfig(node.data.cryptoConfig);
+        if (!node.data.cryptoConfig) {
+            throw new Error('Crypto config is required for ENCRYPT_DATA node');
+        }
+
+        const cryptoConfig = this.applyVariableToCryptoConfig(node.data.cryptoConfig, varUse, variables);
+        const validation = validateCryptoConfig(cryptoConfig);
         if (!validation.valid) {
             throw new Error(`Invalid crypto config: ${validation.errors.join(', ')}`);
         }
 
-        // 데이터 암호화
-        return encryptData(data, node.data.cryptoConfig);
+        (node.data as any).cryptoMeta = {
+            input: sourceData,
+            key: cryptoConfig.key,
+            iv: cryptoConfig.iv || '',
+            output: '',
+        };
+
+        const encryptedData = await encryptData(sourceData, cryptoConfig);
+
+        node.data.processedData = encryptedData;
+        (node.data as any).cryptoMeta.output = encryptedData;
+
+        const result: APDUResponse = {
+            data: encryptedData,
+            sw1: '90',
+            sw2: '00',
+            statusCode: '9000',
+            success: true,
+        };
+
+        this.saveVariables(node, result, variables);
+        return result;
     }
 
     /**
-     * 복호화 처리
+     * CONCAT_DATA 실행: A + B 데이터 연결
+     * A: 변수(use.dataVar) -> pipeConfig -> 파라미터 AData
+     * B: 변수(use.keyVar) -> pipeConfigB -> 파라미터 BData
      */
-    private async applyDecrypto(data: string, node: DiagramNode): Promise<string> {
-        if (!node.data.cryptoConfig) {
-            return data;
+    private async executeConcatData(
+        node: DiagramNode,
+        previousNodes?: Map<string, DiagramNode>,
+        variables?: Map<string, string>
+    ): Promise<APDUResponse> {
+        const varUse = node.data.variableConfig?.use;
+
+        // A 소스
+        let aData = '';
+        if (varUse?.dataVar && variables?.has(varUse.dataVar)) {
+            aData = variables.get(varUse.dataVar) || '';
+        }
+        if (!aData) {
+            const pipeA = this.resolvePipeConfig(node, previousNodes, { allowDefault: false });
+            if (pipeA && previousNodes) {
+                aData = this.extractPipeDataFromConfig(pipeA, previousNodes);
+            }
+        }
+        if (!aData) {
+            aData = this.getParameter(node, 'AData')?.value || '';
         }
 
-        // 암호화 설정 검증
-        const validation = validateCryptoConfig(node.data.cryptoConfig);
+        // B 소스
+        let bData = '';
+        if (varUse?.keyVar && variables?.has(varUse.keyVar)) {
+            bData = variables.get(varUse.keyVar) || '';
+        }
+        if (!bData && (node.data as any).pipeConfigB && previousNodes) {
+            bData = this.extractPipeDataFromConfig((node.data as any).pipeConfigB, previousNodes);
+        }
+        if (!bData) {
+            bData = this.getParameter(node, 'BData')?.value || '';
+        }
+
+        const combined = `${aData}${bData}`;
+        node.data.processedData = combined;
+
+        const result: APDUResponse = {
+            data: combined,
+            sw1: '90',
+            sw2: '00',
+            statusCode: '9000',
+            success: true,
+        };
+
+        this.saveVariables(node, result, variables);
+        return result;
+    }
+
+    /**
+     * DECRYPT_DATA 실행
+     */
+    private async executeDecryptData(
+        node: DiagramNode,
+        previousNodes?: Map<string, DiagramNode>,
+        variables?: Map<string, string>
+    ): Promise<APDUResponse> {
+        // 데이터 소스: 변수 > 파이프
+        let sourceData = '';
+        const varUse = node.data.variableConfig?.use;
+        if (varUse?.dataVar && variables?.has(varUse.dataVar)) {
+            sourceData = variables.get(varUse.dataVar) || '';
+        }
+        if (!sourceData) {
+            const pipeConfig = this.resolvePipeConfig(node, previousNodes, { allowDefault: true });
+            if (!pipeConfig) {
+                throw new Error('No source node for decryption pipe');
+            }
+            sourceData = this.extractPipeDataFromConfig(pipeConfig, previousNodes);
+        }
+        if (!sourceData) {
+            const dataParam = this.getParameter(node, 'Data');
+            sourceData = dataParam?.value || '';
+        }
+
+        if (!node.data.cryptoConfig) {
+            throw new Error('Crypto config is required for DECRYPT_DATA node');
+        }
+
+        const cryptoConfig = this.applyVariableToCryptoConfig(node.data.cryptoConfig, varUse, variables);
+        const validation = validateCryptoConfig(cryptoConfig);
         if (!validation.valid) {
             throw new Error(`Invalid crypto config: ${validation.errors.join(', ')}`);
         }
 
-        // 데이터 복호화
-        return decryptData(data, node.data.cryptoConfig);
+        (node.data as any).cryptoMeta = {
+            input: sourceData,
+            key: cryptoConfig.key,
+            iv: cryptoConfig.iv || '',
+            output: '',
+        };
+
+        const decryptedData = await decryptData(sourceData, cryptoConfig);
+
+        node.data.processedData = decryptedData;
+        (node.data as any).cryptoMeta.output = decryptedData;
+
+        const result: APDUResponse = {
+            data: decryptedData,
+            sw1: '90',
+            sw2: '00',
+            statusCode: '9000',
+            success: true,
+        };
+
+        this.saveVariables(node, result, variables);
+        return result;
     }
 
     /**
      * 파이프에서 데이터 추출
      */
     private extractPipeDataFromConfig(
-        pipeConfig: { sourceNodeId: string; dataOffset: number; dataLength: number; segments?: { dataOffset: number; dataLength: number }[] },
+        pipeConfig: PipeConfig & { segments?: { dataOffset: number; dataLength: number }[] },
         previousNodes?: Map<string, DiagramNode>
     ): string {
         if (!previousNodes) {
@@ -190,74 +352,6 @@ export class NodeExecutor {
         }).join('');
 
         return merged;
-    }
-
-    /**
-     * ENCRYPT_DATA 실행
-     */
-    private async executeEncryptData(
-        node: DiagramNode,
-        previousNodes?: Map<string, DiagramNode>
-    ): Promise<APDUResponse> {
-        // 파이프에서 데이터 추출 (pipeConfig 없으면 직전 노드 전체 데이터)
-        const pipeConfig = this.resolvePipeConfig(node, previousNodes, { allowDefault: true });
-        if (!pipeConfig) {
-            throw new Error('No source node for encryption pipe');
-        }
-        const sourceData = this.extractPipeDataFromConfig(pipeConfig, previousNodes);
-
-        if (!node.data.cryptoConfig) {
-            throw new Error('Crypto config is required for ENCRYPT_DATA node');
-        }
-
-        // 암호화 수행
-        const encryptedData = await this.applyCrypto(sourceData, node);
-
-        // 암호화된 데이터 저장
-        node.data.processedData = encryptedData;
-
-        // 가상 응답 생성 (암복호화 노드는 카드와 통신하지 않음)
-        return {
-            data: encryptedData,
-            sw1: '90',
-            sw2: '00',
-            statusCode: '9000',
-            success: true,
-        };
-    }
-
-    /**
-     * DECRYPT_DATA 실행
-     */
-    private async executeDecryptData(
-        node: DiagramNode,
-        previousNodes?: Map<string, DiagramNode>
-    ): Promise<APDUResponse> {
-        // 파이프에서 데이터 추출 (pipeConfig 없으면 직전 노드 전체 데이터)
-        const pipeConfig = this.resolvePipeConfig(node, previousNodes, { allowDefault: true });
-        if (!pipeConfig) {
-            throw new Error('No source node for decryption pipe');
-        }
-        const sourceData = this.extractPipeDataFromConfig(pipeConfig, previousNodes);
-
-        if (!node.data.cryptoConfig) {
-            throw new Error('Crypto config is required for DECRYPT_DATA node');
-        }
-
-        // 복호화 수행
-        const decryptedData = await this.applyDecrypto(sourceData, node);
-
-        // 복호화된 데이터 저장
-        node.data.processedData = decryptedData;
-
-        // 가상 응답 생성
-        return {
-            data: decryptedData,
-            sw1: '90',
-            sw2: '00',
-            statusCode: '9000',
-            success: true,
-        };
     }
 
     /**
@@ -302,5 +396,52 @@ export class NodeExecutor {
             dataOffset: 0,
             dataLength: -1,
         };
+    }
+
+    /**
+     * 변수 저장
+     */
+    private saveVariables(node: DiagramNode, response: any, variables?: Map<string, string>): void {
+        if (!variables || !node.data.variableConfig?.save) return;
+
+        node.data.variableConfig.save.forEach((cfg) => {
+            const sourceType = cfg.source;
+            let sourceData = '';
+            if (sourceType === 'response') {
+                sourceData = response?.data || '';
+            } else {
+                sourceData = node.data.processedData || '';
+            }
+            if (!sourceData) return;
+
+            const offset = (cfg.dataOffset || 0) * 2;
+            const length = cfg.dataLength === -1 ? -1 : (cfg.dataLength || 0) * 2;
+            let slice = '';
+            if (length === -1) {
+                slice = sourceData.substring(offset);
+            } else {
+                slice = sourceData.substring(offset, offset + length);
+            }
+            variables.set(cfg.name, slice);
+        });
+    }
+
+    /**
+     * 변수로 CryptoConfig 치환
+     */
+    private applyVariableToCryptoConfig(
+        config: CryptoConfig,
+        varUse: any,
+        variables?: Map<string, string>
+    ): CryptoConfig {
+        if (!variables || !varUse) return config;
+        const newCfg: CryptoConfig = { ...config };
+        if (varUse.keyVar && variables.has(varUse.keyVar)) {
+            newCfg.key = variables.get(varUse.keyVar) || newCfg.key;
+        }
+        if (varUse.ivVar && variables.has(varUse.ivVar)) {
+            newCfg.iv = variables.get(varUse.ivVar) || newCfg.iv;
+        }
+        return newCfg;
     }
 }

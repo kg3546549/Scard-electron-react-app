@@ -133,7 +133,7 @@ export const Sidebar: React.FC = () => {
             {/* Header */}
             <Flex h="10vh" alignItems="center" mx={8} justifyContent="center">
                 <Text fontSize="2xl" fontFamily="monospace" fontWeight="extrabold">
-                    CARD Tools
+                    CARDs
                 </Text>
             </Flex>
 

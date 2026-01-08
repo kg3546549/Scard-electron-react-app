@@ -8,7 +8,12 @@
 
 import { CryptoAlgorithm, CryptoConfig } from '../types';
 import CryptoJS from 'crypto-js';
-import { KISA_SEED_CBC } from '@kr-yeon/kisa-seed';
+import { Buffer } from 'buffer';
+import { setKey as seedSetKey, encrypt as seedEncrypt, decrypt as seedDecrypt } from 'seed-ecb';
+
+if (typeof (globalThis as any).Buffer === 'undefined') {
+    (globalThis as any).Buffer = Buffer;
+}
 
 /**
  * Hex 문자열을 바이트 배열로 변환
@@ -234,35 +239,25 @@ function decrypt3DES(encHex: string, keyHex: string, ivHex?: string): string {
 /**
  * SEED-CBC (kisa-seed) hex in/out
  */
-function encryptSEED(dataHex: string, keyHex: string, ivHex?: string): string {
+function encryptSEED(dataHex: string, keyHex: string, _ivHex?: string): string {
     const keyBytes = hexToBytes(keyHex);
-    const ivBytes = ivHex ? hexToBytes(ivHex) : new Uint8Array(16);
-
     if (keyBytes.length !== 16) {
         throw new Error('SEED key must be 16 bytes (32 hex chars)');
     }
-    if (ivBytes.length !== 16) {
-        throw new Error('SEED IV must be 16 bytes (32 hex chars)');
-    }
-
     const dataBytes = hexToBytes(dataHex);
-    const enc = KISA_SEED_CBC.SEED_CBC_Encrypt(keyBytes, ivBytes, dataBytes, 0, dataBytes.length);
+    seedSetKey(keyHex, 'hex');
+    const enc = seedEncrypt(dataBytes);
     return bytesToHex(enc).toUpperCase();
 }
 
-function decryptSEED(encHex: string, keyHex: string, ivHex?: string): string {
+function decryptSEED(encHex: string, keyHex: string, _ivHex?: string): string {
     const keyBytes = hexToBytes(keyHex);
-    const ivBytes = ivHex ? hexToBytes(ivHex) : new Uint8Array(16);
-
     if (keyBytes.length !== 16) {
         throw new Error('SEED key must be 16 bytes (32 hex chars)');
     }
-    if (ivBytes.length !== 16) {
-        throw new Error('SEED IV must be 16 bytes (32 hex chars)');
-    }
-
     const encBytes = hexToBytes(encHex);
-    const dec = KISA_SEED_CBC.SEED_CBC_Decrypt(keyBytes, ivBytes, encBytes, 0, encBytes.length);
+    seedSetKey(keyHex, 'hex');
+    const dec = seedDecrypt(encBytes);
     return bytesToHex(dec).toUpperCase();
 }
 

@@ -49,10 +49,11 @@ describe('Pipe Integration Tests', () => {
                     label: 'Encrypt Data',
                     parameters: [],
                     executed: false,
+                    processedData: '',
                     cryptoConfig: {
-                        algorithm: CryptoAlgorithm.AES,
-                        key: '0123456789ABCDEF0123456789ABCDEF',
-                        iv: '0123456789ABCDEF0123456789ABCDEF',
+                        algorithm: CryptoAlgorithm.DES,
+                        key: '0123456789ABCDEF',
+                        iv: '0123456789ABCDEF',
                     },
                     pipeConfig: {
                         sourceNodeId: 'source-1',
@@ -100,9 +101,9 @@ describe('Pipe Integration Tests', () => {
                     parameters: [],
                     executed: false,
                     cryptoConfig: {
-                        algorithm: CryptoAlgorithm.AES,
-                        key: '0123456789ABCDEF0123456789ABCDEF',
-                        iv: '0123456789ABCDEF0123456789ABCDEF',
+                        algorithm: CryptoAlgorithm.DES,
+                        key: '0123456789ABCDEF',
+                        iv: '0123456789ABCDEF',
                     },
                     pipeConfig: {
                         sourceNodeId: 'source-1',
@@ -196,10 +197,11 @@ describe('Pipe Integration Tests', () => {
                     label: 'Decrypt Data',
                     parameters: [],
                     executed: false,
+                    processedData: '',
                     cryptoConfig: {
-                        algorithm: CryptoAlgorithm.AES,
-                        key: '0123456789ABCDEF0123456789ABCDEF',
-                        iv: '0123456789ABCDEF0123456789ABCDEF',
+                        algorithm: CryptoAlgorithm.DES,
+                        key: '0123456789ABCDEF',
+                        iv: '0123456789ABCDEF',
                     },
                     pipeConfig: {
                         sourceNodeId: 'encrypt-1',
@@ -250,9 +252,10 @@ describe('Pipe Integration Tests', () => {
                     label: 'Encrypt Challenge',
                     parameters: [],
                     executed: false,
+                    processedData: '',
                     cryptoConfig: {
-                        algorithm: CryptoAlgorithm.AES,
-                        key: '0123456789ABCDEF0123456789ABCDEF',
+                        algorithm: CryptoAlgorithm.DES,
+                        key: '0123456789ABCDEF',
                     },
                     pipeConfig: {
                         sourceNodeId: 'node-1',
@@ -289,7 +292,12 @@ describe('Pipe Integration Tests', () => {
                 data: {
                     label: 'Send Encrypted Data',
                     parameters: [
+                        { name: 'CLA', value: '00', type: 'hex' as const },
+                        { name: 'INS', value: '82', type: 'hex' as const },
+                        { name: 'P1', value: '00', type: 'hex' as const },
+                        { name: 'P2', value: '00', type: 'hex' as const },
                         { name: 'Data', value: '', type: 'hex' as const },
+                        { name: 'Le', value: '00', type: 'hex' as const },
                     ],
                     executed: false,
                     pipeConfig: {

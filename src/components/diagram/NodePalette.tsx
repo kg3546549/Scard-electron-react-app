@@ -21,6 +21,7 @@ const nodeTypes = [
     { type: DiagramNodeType.CUSTOM_APDU, label: 'Custom APDU', description: 'Custom Command', color: 'blue' },
     { type: DiagramNodeType.ENCRYPT_DATA, label: 'Encrypt Data', description: 'Encrypt piped data', color: 'purple' },
     { type: DiagramNodeType.DECRYPT_DATA, label: 'Decrypt Data', description: 'Decrypt piped data', color: 'purple' },
+    { type: DiagramNodeType.CONCAT_DATA, label: 'Concat Data', description: 'A+B data combine', color: 'orange' },
 ];
 
 export const NodePalette: React.FC<NodePaletteProps> = ({ onDragStart }) => {

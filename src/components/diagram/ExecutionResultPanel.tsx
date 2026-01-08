@@ -48,6 +48,9 @@ export const ExecutionResultPanel: React.FC<ExecutionResultPanelProps> = ({ resu
     const successCount = results.filter(r => r.success).length;
     const errorCount = results.filter(r => !r.success).length;
     const totalTime = results.reduce((sum, r) => sum + r.executionTime, 0);
+    const lastSuccessWithData = [...results].reverse().find(
+        (r) => r.success && r.outputData
+    );
 
     return (
         <Card h="100%" overflowY="auto">
@@ -60,6 +63,22 @@ export const ExecutionResultPanel: React.FC<ExecutionResultPanelProps> = ({ resu
                         <Badge colorScheme="blue">Total: {results.length}</Badge>
                         <Badge colorScheme="purple">Time: {totalTime}ms</Badge>
                     </HStack>
+                    {lastSuccessWithData && (
+                        <Box>
+                            <Text fontSize="xs" fontWeight="bold" mb={1}>
+                                Final Output
+                            </Text>
+                            <Code
+                                p={2}
+                                display="block"
+                                whiteSpace="pre-wrap"
+                                wordBreak="break-all"
+                                fontSize="xs"
+                            >
+                                    {lastSuccessWithData.outputData}
+                                </Code>
+                            </Box>
+                        )}
                 </VStack>
             </CardHeader>
 
@@ -120,7 +139,7 @@ export const ExecutionResultPanel: React.FC<ExecutionResultPanelProps> = ({ resu
                                     )}
 
                                     {/* Response */}
-                                    {result.response && (
+                                    {result.response && result.nodeType !== 'ENCRYPT_DATA' && result.nodeType !== 'DECRYPT_DATA' && result.nodeType !== 'CONCAT_DATA' && (
                                         <>
                                             <Divider />
                                             <Box>
@@ -183,6 +202,89 @@ export const ExecutionResultPanel: React.FC<ExecutionResultPanelProps> = ({ resu
                                                                 </Td>
                                                             </Tr>
                                                         )}
+                                                    </Tbody>
+                                                </Table>
+                                            </Box>
+                                        </>
+                                    )}
+
+                                    {(result.nodeType === 'ENCRYPT_DATA' || result.nodeType === 'DECRYPT_DATA') && (
+                                        <>
+                                            <Divider />
+                                            <Box>
+                                                <Text fontSize="xs" fontWeight="bold" mb={2}>
+                                                    Crypto Details
+                                                </Text>
+                                                <Table size="sm" variant="simple">
+                                                    <Tbody>
+                                                        <Tr>
+                                                            <Td fontSize="xs" fontWeight="bold" w="100px">
+                                                                Input
+                                                            </Td>
+                                                            <Td fontSize="xs">
+                                                                <Code display="block" whiteSpace="pre-wrap" wordBreak="break-all">
+                                                                    {result.cryptoInput || ''}
+                                                                </Code>
+                                                            </Td>
+                                                        </Tr>
+                                                        <Tr>
+                                                            <Td fontSize="xs" fontWeight="bold">
+                                                                Key
+                                                            </Td>
+                                                            <Td fontSize="xs">
+                                                                <Code display="block" whiteSpace="pre-wrap" wordBreak="break-all">
+                                                                    {result.cryptoKey || ''}
+                                                                </Code>
+                                                            </Td>
+                                                        </Tr>
+                                                        <Tr>
+                                                            <Td fontSize="xs" fontWeight="bold">
+                                                                IV
+                                                            </Td>
+                                                            <Td fontSize="xs">
+                                                                <Code display="block" whiteSpace="pre-wrap" wordBreak="break-all">
+                                                                    {result.cryptoIv || ''}
+                                                                </Code>
+                                                            </Td>
+                                                        </Tr>
+                                                        <Tr>
+                                                            <Td fontSize="xs" fontWeight="bold">
+                                                                Output
+                                                            </Td>
+                                                            <Td fontSize="xs">
+                                                                <Code display="block" whiteSpace="pre-wrap" wordBreak="break-all">
+                                                                    {result.cryptoOutput || result.outputData || ''}
+                                                                </Code>
+                                                            </Td>
+                                                        </Tr>
+                                                    </Tbody>
+                                                </Table>
+                                            </Box>
+                                        </>
+                                    )}
+
+                                    {/* Variables snapshot */}
+                                    {result.variablesSnapshot && Object.keys(result.variablesSnapshot).length > 0 && (
+                                        <>
+                                            <Divider />
+                                            <Box>
+                                                <Text fontSize="xs" fontWeight="bold" mb={2}>
+                                                    Variables
+                                                </Text>
+                                                <Table size="sm" variant="simple">
+                                                    <Tbody>
+                                                        {Object.entries(result.variablesSnapshot).map(([k, v]) => (
+                                                            <Tr key={k}>
+                                                                <Td fontSize="xs" fontWeight="bold" w="100px">
+                                                                    {k}
+                                                                </Td>
+                                                                <Td fontSize="xs">
+                                                                    <Code display="block" whiteSpace="pre-wrap" wordBreak="break-all">
+                                                                        {v}
+                                                                    </Code>
+                                                                </Td>
+                                                            </Tr>
+                                                        ))}
                                                     </Tbody>
                                                 </Table>
                                             </Box>
