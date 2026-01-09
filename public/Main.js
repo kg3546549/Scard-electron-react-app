@@ -16,6 +16,12 @@ let driverReady = false;
 const pendingRequests = new Map(); // uuid -> {resolve, reject, timeout}
 let lastDriverStatus = null;
 
+function safeSendToRenderer(channel, payload) {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send(channel, payload);
+    }
+}
+
 // Command enum (matching driver protocol)
 const Command = {
     Cmd_Err: 0,
@@ -68,13 +74,15 @@ function createWindow() {
         width: 1300,
         height: 800,
         webPreferences: {
-            preload: path.join(__dirname, "../src/preload.js"),
+            preload: path.join(__dirname, "preload.js"),
         },
         autoHideMenuBar: true,
     });
 
     const startUrl = process.env.ELECTRON_START_URL || url.format({
-        pathname: path.join(__dirname, '/../public/index.html'),
+        pathname: app.isPackaged
+            ? path.join(__dirname, '/../build/index.html')
+            : path.join(__dirname, '/../public/index.html'),
         protocol: 'file:',
         slashes: true
     });
@@ -85,7 +93,7 @@ function createWindow() {
 
     // 창 생성 이후 최근 드라이버 상태를 한 번 더 전달
     if (lastDriverStatus) {
-        mainWindow.webContents.send('driver-status', lastDriverStatus);
+        safeSendToRenderer('driver-status', lastDriverStatus);
     }
 }
 
@@ -93,7 +101,9 @@ function createWindow() {
  * Spawn winscard-pcsc.exe driver process
  */
 function spawnDriverProcess() {
-    const driverPath = path.join(__dirname, '../winscard-driver/winscard-pcsc.exe');
+    const driverPath = app.isPackaged
+        ? path.join(process.resourcesPath, 'winscard-driver', 'winscard-pcsc.exe')
+        : path.join(__dirname, '../winscard-driver/winscard-pcsc.exe');
 
     console.log('[DRIVER] Spawning driver process:', driverPath);
 
@@ -140,9 +150,7 @@ function spawnDriverProcess() {
             message: `Driver process exited with code ${code}`
         };
         lastDriverStatus = statusPayload;
-        if (mainWindow) {
-            mainWindow.webContents.send('driver-status', statusPayload);
-        }
+        safeSendToRenderer('driver-status', statusPayload);
 
         // Reject all pending requests
         pendingRequests.forEach(({reject}) => {
@@ -167,10 +175,37 @@ function spawnDriverProcess() {
             message: 'Driver process is running'
         };
         lastDriverStatus = statusPayload;
-        if (mainWindow) {
-            mainWindow.webContents.send('driver-status', statusPayload);
-        }
+        safeSendToRenderer('driver-status', statusPayload);
     }, 100);
+}
+
+function isDriverRunning() {
+    return !!(driverProcess && driverReady && !driverProcess.killed && driverProcess.exitCode == null);
+}
+
+function restartDriverProcess() {
+    return new Promise((resolve) => {
+        const start = () => {
+            spawnDriverProcess();
+            resolve({ status: 'RESTARTED' });
+        };
+
+        if (!driverProcess || driverProcess.killed || driverProcess.exitCode != null) {
+            start();
+            return;
+        }
+
+        const timeoutId = setTimeout(() => {
+            start();
+        }, 500);
+
+        driverProcess.once('exit', () => {
+            clearTimeout(timeoutId);
+            start();
+        });
+
+        driverProcess.kill();
+    });
 }
 
 /**
@@ -243,9 +278,7 @@ function handleDriverResponse(response) {
     }
 
     // Also forward to renderer
-    if (mainWindow) {
-        mainWindow.webContents.send('channel', patchedResponse);
-    }
+    safeSendToRenderer('channel', patchedResponse);
 }
 
 /**
@@ -420,8 +453,26 @@ ipcMain.on('requestChannel', async (event, requestData) => {
             data: [error.message]
         };
 
-        mainWindow.webContents.send('channel', errorResponse);
+        safeSendToRenderer('channel', errorResponse);
     }
+});
+
+ipcMain.handle('driver-process-status', async () => {
+    return {
+        running: isDriverRunning(),
+        pid: driverProcess?.pid || null,
+    };
+});
+
+ipcMain.handle('driver-restart', async () => {
+    return restartDriverProcess();
+});
+
+ipcMain.handle('driver-restart-if-stopped', async () => {
+    if (!isDriverRunning()) {
+        return restartDriverProcess();
+    }
+    return { status: 'RUNNING' };
 });
 
 // Diagram file operations

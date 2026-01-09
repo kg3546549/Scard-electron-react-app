@@ -19,6 +19,7 @@ import {
     Text,
     Divider,
     useToast,
+    HStack,
 } from '@chakra-ui/react';
 import { useDriverStore } from '../stores';
 import { pcscService } from '../core/services';
@@ -29,6 +30,11 @@ export const DriverTestPage: React.FC = () => {
 
     const [results, setResults] = React.useState<{ [key: string]: string }>({});
     const [statuses, setStatuses] = React.useState<{ [key: string]: 'ready' | 'processing' | 'success' | 'fail' }>({});
+    const [apduInput, setApduInput] = React.useState('00A4040000');
+    const [driverProcessStatus, setDriverProcessStatus] = React.useState<{ running: boolean; pid: number | null }>({
+        running: false,
+        pid: null,
+    });
 
     const badgeColor = {
         ready: 'gray',
@@ -63,15 +69,17 @@ export const DriverTestPage: React.FC = () => {
         }
     };
 
+    const refreshDriverStatus = React.useCallback(async () => {
+        if (!window.electron?.ipcRenderer) return;
+        const status = await window.electron.ipcRenderer.invoke('driver-process-status');
+        setDriverProcessStatus(status);
+    }, []);
+
+    React.useEffect(() => {
+        refreshDriverStatus();
+    }, [refreshDriverStatus]);
+
     const testCards = [
-        {
-            name: 'Socket Connect',
-            command: () => pcscService.connect(),
-            buttons: [
-                { label: 'Connect', action: () => pcscService.connect() },
-                { label: 'Disconnect', action: () => pcscService.disconnect() },
-            ],
-        },
         {
             name: 'Establish Context',
             command: () => pcscService.establishContext(),
@@ -151,6 +159,50 @@ export const DriverTestPage: React.FC = () => {
                         </CardFooter>
                     </Card>
                 ))}
+                <Card>
+                    <CardHeader>
+                        <Stack direction="row" align="center">
+                            <Heading size="sm">Transmit APDU</Heading>
+                            <Badge colorScheme={badgeColor[statuses['Transmit APDU'] || 'ready']}>
+                                {statuses['Transmit APDU'] || 'ready'}
+                            </Badge>
+                        </Stack>
+                    </CardHeader>
+                    <CardBody>
+                        <Text fontSize="sm" mb={2}>
+                            APDU (hex)
+                        </Text>
+                        <Textarea
+                            value={apduInput}
+                            onChange={(e) => setApduInput(e.target.value.toUpperCase())}
+                            fontSize="xs"
+                            fontFamily="mono"
+                            minH="60px"
+                            mb={3}
+                        />
+                        <Text fontSize="sm" mb={2}>
+                            Result
+                        </Text>
+                        <Textarea
+                            readOnly
+                            value={results['Transmit APDU'] || ''}
+                            fontSize="xs"
+                            fontFamily="mono"
+                            minH="100px"
+                        />
+                    </CardBody>
+                    <CardFooter>
+                        <Button
+                            size="sm"
+                            colorScheme="blue"
+                            onClick={() =>
+                                runCommand('Transmit APDU', () => pcscService.transmit(apduInput.trim()))
+                            }
+                        >
+                            Send
+                        </Button>
+                    </CardFooter>
+                </Card>
             </SimpleGrid>
 
             <Divider my={6} />
@@ -161,6 +213,35 @@ export const DriverTestPage: React.FC = () => {
             <Card>
                 <CardBody>
                     <Stack spacing={2}>
+                        <HStack spacing={2}>
+                            <Text>
+                                <strong>Driver Process:</strong>{' '}
+                                {driverProcessStatus.running ? 'RUNNING' : 'STOPPED'}
+                                {driverProcessStatus.pid ? ` (PID ${driverProcessStatus.pid})` : ''}
+                            </Text>
+                            <Button
+                                size="xs"
+                                variant="outline"
+                                onClick={async () => {
+                                    if (!window.electron?.ipcRenderer) return;
+                                    await window.electron.ipcRenderer.invoke('driver-restart-if-stopped');
+                                    await refreshDriverStatus();
+                                }}
+                            >
+                                Restart If Stopped
+                            </Button>
+                            <Button
+                                size="xs"
+                                variant="outline"
+                                onClick={async () => {
+                                    if (!window.electron?.ipcRenderer) return;
+                                    await window.electron.ipcRenderer.invoke('driver-restart');
+                                    await refreshDriverStatus();
+                                }}
+                            >
+                                Restart
+                            </Button>
+                        </HStack>
                         <Text>
                             <strong>Status:</strong> {connectionStatus}
                         </Text>

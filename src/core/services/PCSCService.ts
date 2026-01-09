@@ -291,6 +291,23 @@ export class PCSCService {
     }
 
     /**
+     * Mifare SAK 조회 (리더 지원 시)
+     */
+    async getMifareSAK(): Promise<string> {
+        const response = await this.sendCommand(Command.Cmd_SCard_Transmit, ['FFCA020000']);
+        return response.data[0] || '';
+    }
+
+    /**
+     * Mifare ATS 조회 (리더 지원 시)
+     */
+    async getMifareATS(): Promise<string> {
+        const response = await this.sendCommand(Command.Cmd_SCard_Transmit, ['FFCA010000']);
+        return response.data[0] || '';
+    }
+
+
+    /**
      * Mifare 키 로드
      */
     async loadMifareKey(key: string): Promise<void> {

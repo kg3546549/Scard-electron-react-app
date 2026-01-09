@@ -33,10 +33,57 @@ export class MifareService {
             // UID 조회 (APDU 기반)
             const uid = await pcscService.getMifareUID();
 
+            let sak: string | undefined;
+            let ats: string | undefined;
+            try {
+                const sakResp = await pcscService.getMifareSAK();
+                const sakSw = this.extractStatusWord(sakResp);
+                if (!sakSw || sakSw === '9000') {
+                    sak = this.stripStatusWord(sakResp);
+                }
+            } catch (_error) {
+                sak = undefined;
+            }
+            try {
+                const atsResp = await pcscService.getMifareATS();
+                const atsSw = this.extractStatusWord(atsResp);
+                if (!atsSw || atsSw === '9000') {
+                    ats = this.stripStatusWord(atsResp);
+                }
+            } catch (_error) {
+                ats = undefined;
+            }
+            let cardType = CardType.UNKNOWN;
+            if (sak && sak.length >= 2) {
+                const sakByteHex = sak.slice(-2);
+                const sakByte = parseInt(sakByteHex, 16);
+                if (!Number.isNaN(sakByte)) {
+                    if (sakByte === 0x08) {
+                        cardType = CardType.MIFARE_1K;
+                    } else if (sakByte === 0x18) {
+                        cardType = CardType.MIFARE_4K;
+                    } else if (sakByte === 0x20) {
+                        cardType = CardType.DESFIRE;
+                    } else if (sakByte === 0x00) {
+                        cardType = CardType.ISO7816;
+                    }
+                }
+            }
+            if (cardType === CardType.UNKNOWN) {
+                if (ats && ats.length > 0) {
+                    cardType = CardType.ISO7816;
+                } else if (uid && uid.length > 0) {
+                    // SAK 미지원 리더 대비 기본값
+                    cardType = CardType.MIFARE_1K;
+                }
+            }
+
             const cardInfo: CardInfo = {
-                type: CardType.MIFARE_1K,
+                type: cardType,
                 atr,
                 uid,
+                sak,
+                ats,
             };
 
             this.card.initialize(cardInfo);
@@ -50,7 +97,11 @@ export class MifareService {
     /**
      * 섹터 읽기
      */
-    async readSectors(sectorNumbers: number[], keyConfig: MifareKeyConfig): Promise<void> {
+    async readSectors(
+        sectorNumbers: number[],
+        keyConfig: MifareKeyConfig,
+        onSectorUpdate?: (sectorNumber: number, card: MifareCard) => void
+    ): Promise<void> {
         try {
             // 키 로드 (slot 0 사용)
             await pcscService.loadMifareKey(keyConfig.keyValue);
@@ -89,7 +140,10 @@ export class MifareService {
                 } catch (err) {
                     const reason = (err as Error).message || 'Unknown error';
                     this.card.setSectorError(sectorNumber, reason);
-                    throw err;
+                }
+
+                if (onSectorUpdate) {
+                    onSectorUpdate(sectorNumber, this.card);
                 }
 
                 // 섹터 간 딜레이

@@ -81,10 +81,19 @@
       "buildResources": "public",
       "output": "dist"
     },
+    "extraResources": [
+      {
+        "from": "winscard-driver",
+        "to": "winscard-driver",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
     "files": [
       "build/**/*",
       "public/Main.js",
-      "winscard-driver/**/*",
+      "public/preload.js",
       "node_modules/**/*"
     ],
     "extraMetadata": {

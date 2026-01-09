@@ -23,6 +23,7 @@ import { FaSearch, FaStop } from 'react-icons/fa';
 import { useMifareStore } from '../stores';
 import { CardInfoDisplay, StatusBadge } from '../components/common';
 import { SectorCard, KeySelector } from '../components/mifare';
+import { CardType } from '../types';
 
 export const MifareReadingPage: React.FC = () => {
     const toast = useToast();
@@ -64,6 +65,24 @@ export const MifareReadingPage: React.FC = () => {
     };
 
     const handleStartScan = async () => {
+        if (!cardInfo) {
+            toast({
+                title: 'No card detected',
+                description: 'Detect the card first',
+                status: 'warning',
+                duration: 3000,
+            });
+            return;
+        }
+        if (cardInfo.type !== CardType.MIFARE_1K && cardInfo.type !== CardType.MIFARE_4K) {
+            toast({
+                title: 'Unsupported card type',
+                description: `Mifare Classic reading only. Detected: ${cardInfo.type}`,
+                status: 'warning',
+                duration: 4000,
+            });
+            return;
+        }
         if (!selectedSectors.some((s: boolean) => s)) {
             toast({
                 title: 'No sectors selected',

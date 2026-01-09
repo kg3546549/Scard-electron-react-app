@@ -40,6 +40,16 @@ import { DiagramNodeType, DiagramNode, DiagramEdge } from '../types';
 
 const nodeTypes = {
     apduNode: APDUNode,
+    SELECT_AID: APDUNode,
+    GET_CHALLENGE: APDUNode,
+    INTERNAL_AUTH: APDUNode,
+    EXTERNAL_AUTH: APDUNode,
+    READ_RECORD: APDUNode,
+    READ_BINARY: APDUNode,
+    CUSTOM_APDU: APDUNode,
+    ENCRYPT_DATA: APDUNode,
+    DECRYPT_DATA: APDUNode,
+    CONCAT_DATA: APDUNode,
 };
 const edgeOptions = {
     style: { strokeWidth: 2 },

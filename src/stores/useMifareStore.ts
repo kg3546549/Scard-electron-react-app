@@ -81,11 +81,23 @@ export const useMifareStore = create<MifareStore>((set, get) => ({
         set({ status: CardReadingStatus.READING, error: null });
 
         try {
-            await service.readSectors(sectorNumbers, keyConfig);
+            await service.readSectors(sectorNumbers, keyConfig, (_sectorNumber, card) => {
+                const sectorData = card.sectorData.map((sector) => ({
+                    ...sector,
+                    blocks: [...sector.blocks],
+                }));
+                set({
+                    sectorData,
+                    status: CardReadingStatus.READING,
+                });
+            });
             const card = service.getCard();
 
             set({
-                sectorData: card.sectorData,
+                sectorData: card.sectorData.map((sector) => ({
+                    ...sector,
+                    blocks: [...sector.blocks],
+                })),
                 status: CardReadingStatus.SUCCESS,
             });
         } catch (error) {
