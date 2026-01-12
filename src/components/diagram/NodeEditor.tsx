@@ -287,6 +287,9 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({ node, onUpdate, onDelete
         if (cryptoAlgorithm === CryptoAlgorithm.SEED && len !== 32) {
             return 'SEED key must be 16 bytes (32 hex)';
         }
+        if (cryptoAlgorithm === CryptoAlgorithm.ARIA && ![32, 48, 64].includes(len)) {
+            return 'ARIA key must be 16/24/32 bytes (32/48/64 hex)';
+        }
         if (!isValidHexEven(cryptoKey)) return HEX_RULE;
         return '';
     }, [cryptoAlgorithm, cryptoKey, isCryptoNode]);
@@ -301,6 +304,9 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({ node, onUpdate, onDelete
         }
         if (cryptoAlgorithm === CryptoAlgorithm.SEED && cryptoIv.length !== 32) {
             return 'SEED IV must be 16 bytes (32 hex)';
+        }
+        if (cryptoAlgorithm === CryptoAlgorithm.ARIA && cryptoIv.length !== 32) {
+            return 'ARIA IV must be 16 bytes (32 hex)';
         }
         return '';
     }, [cryptoAlgorithm, cryptoIv, isCryptoNode]);
@@ -564,6 +570,7 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({ node, onUpdate, onDelete
                         <option value={CryptoAlgorithm.DES}>DES</option>
                         <option value={CryptoAlgorithm.TRIPLE_DES}>3DES</option>
                         <option value={CryptoAlgorithm.SEED}>SEED</option>
+                        <option value={CryptoAlgorithm.ARIA}>ARIA (CBC)</option>
                     </Select>
                 </FormControl>
 

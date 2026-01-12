@@ -10,6 +10,7 @@ import { CryptoAlgorithm, CryptoConfig } from '../types';
 import CryptoJS from 'crypto-js';
 import { Buffer } from 'buffer';
 import { setKey as seedSetKey, encrypt as seedEncrypt, decrypt as seedDecrypt } from 'seed-ecb';
+import { ariaEncryptCBC, ariaDecryptCBC } from './AriaUtils';
 
 if (typeof (globalThis as any).Buffer === 'undefined') {
     (globalThis as any).Buffer = Buffer;
@@ -58,6 +59,8 @@ export async function encryptData(data: string, config: CryptoConfig): Promise<s
             return encrypt3DES(data, config.key, config.iv);
         case CryptoAlgorithm.SEED:
             return encryptSEED(data, config.key, config.iv);
+        case CryptoAlgorithm.ARIA:
+            return encryptARIA(data, config.key, config.iv);
         default:
             throw new Error(`Encryption for ${config.algorithm} is not supported. Use AES.`);
     }
@@ -84,6 +87,8 @@ export async function decryptData(encryptedData: string, config: CryptoConfig): 
             return decrypt3DES(encryptedData, config.key, config.iv);
         case CryptoAlgorithm.SEED:
             return decryptSEED(encryptedData, config.key, config.iv);
+        case CryptoAlgorithm.ARIA:
+            return decryptARIA(encryptedData, config.key, config.iv);
         default:
             throw new Error(`Decryption for ${config.algorithm} is not supported. Use AES.`);
     }
@@ -126,6 +131,8 @@ export function validateKey(algorithm: CryptoAlgorithm, key: string): boolean {
             return keyLength === 16 || keyLength === 24 || keyLength === 32; // 128, 192, or 256 bits
         case CryptoAlgorithm.SEED:
             return keyLength === 16; // 128 bits
+        case CryptoAlgorithm.ARIA:
+            return keyLength === 16 || keyLength === 24 || keyLength === 32; // 128, 192, or 256 bits
         default:
             return false;
     }
@@ -262,6 +269,37 @@ function decryptSEED(encHex: string, keyHex: string, _ivHex?: string): string {
 }
 
 /**
+ * ARIA-CBC (hex in/out)
+ */
+function encryptARIA(dataHex: string, keyHex: string, ivHex?: string): string {
+    const keyBytes = hexToBytes(keyHex);
+    if (![16, 24, 32].includes(keyBytes.length)) {
+        throw new Error('ARIA key must be 16/24/32 bytes');
+    }
+    const dataBytes = hexToBytes(dataHex);
+    const ivBytes = ivHex ? hexToBytes(ivHex) : new Uint8Array(16);
+    if (ivBytes.length !== 16) {
+        throw new Error('ARIA IV must be 16 bytes');
+    }
+    const enc = ariaEncryptCBC(dataBytes, keyBytes, ivBytes);
+    return bytesToHex(enc).toUpperCase();
+}
+
+function decryptARIA(encHex: string, keyHex: string, ivHex?: string): string {
+    const keyBytes = hexToBytes(keyHex);
+    if (![16, 24, 32].includes(keyBytes.length)) {
+        throw new Error('ARIA key must be 16/24/32 bytes');
+    }
+    const encBytes = hexToBytes(encHex);
+    const ivBytes = ivHex ? hexToBytes(ivHex) : new Uint8Array(16);
+    if (ivBytes.length !== 16) {
+        throw new Error('ARIA IV must be 16 bytes');
+    }
+    const dec = ariaDecryptCBC(encBytes, keyBytes, ivBytes);
+    return bytesToHex(dec).toUpperCase();
+}
+
+/**
  * IV(Initialization Vector) 검증
  */
 export function validateIV(algorithm: CryptoAlgorithm, iv: string): boolean {
@@ -277,6 +315,7 @@ export function validateIV(algorithm: CryptoAlgorithm, iv: string): boolean {
             return ivLength === 8; // 64 bits
         case CryptoAlgorithm.AES:
         case CryptoAlgorithm.SEED:
+        case CryptoAlgorithm.ARIA:
             return ivLength === 16; // 128 bits
         default:
             return false;

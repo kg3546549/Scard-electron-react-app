@@ -127,18 +127,12 @@ export const Sidebar: React.FC = () => {
             borderRightColor={borderColor}
             w={{ base: 'full', md: 60 }}
             pos="fixed"
-            h="full"
+            top="64px" // Account for Header height
+            h="calc(100vh - 64px)" // Full height minus Header
             display={{ base: 'none', md: 'block' }}
         >
-            {/* Header */}
-            <Flex h="10vh" alignItems="center" mx={8} justifyContent="center">
-                <Text fontSize="2xl" fontFamily="monospace" fontWeight="extrabold">
-                    CARDs
-                </Text>
-            </Flex>
-
             {/* Navigation Items */}
-            <Flex direction="column" minHeight="90vh">
+            <Flex direction="column" h="full" pt={4}>
                 <VStack spacing={1} align="stretch">
                     {navItems.map((item) => (
                         <NavItemComponent
@@ -161,7 +155,7 @@ export const Sidebar: React.FC = () => {
                     direction="column"
                     align="center"
                 >
-                    <Text fontWeight="bold" mb={2}>
+                    <Text fontWeight="bold" mb={2} fontSize="sm" color="gray.500">
                         Reader Status
                     </Text>
                     {getConnectionBadge()}

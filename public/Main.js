@@ -73,6 +73,7 @@ function createWindow() {
         y: mainWindowState.y,
         width: 1300,
         height: 800,
+        frame: false, // Frameless window for custom header
         webPreferences: {
             preload: path.join(__dirname, "preload.js"),
         },
@@ -296,6 +297,15 @@ function generateUUID() {
 app.on('ready', () => {
     spawnDriverProcess();
     setTimeout(createWindow, 500); // Give driver a moment to start
+});
+
+// Window control handlers
+ipcMain.on('window-minimize', () => {
+    if (mainWindow) mainWindow.minimize();
+});
+
+ipcMain.on('window-close', () => {
+    if (mainWindow) mainWindow.close();
 });
 
 app.on('before-quit', () => {

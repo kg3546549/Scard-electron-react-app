@@ -30,6 +30,7 @@ export enum CryptoAlgorithm {
     TRIPLE_DES = 'TRIPLE_DES',
     AES = 'AES',
     SEED = 'SEED',
+    ARIA = 'ARIA',
 }
 
 /**
