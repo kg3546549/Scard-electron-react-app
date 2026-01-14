@@ -1,6 +1,6 @@
 {
   "name": "winscard-pcsc-client",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "dependencies": {
     "@chakra-ui/icons": "^2.2.4",
@@ -45,7 +45,7 @@
     "eject": "react-scripts eject",
     "react-start": "cross-env BROWSER=none react-scripts start",
     "electron-start": "cross-env ELECTRON_START_URL=http://localhost:3000 electron .",
-    "dev": "concurrently \"yarn react-start\" \"wait-on http://localhost:3000 && yarn electron-start\" -n \"REACT,ELECTRON\" -c \"blue,green\"",
+    "   ": "concurrently \"yarn react-start\" \"wait-on http://localhost:3000 && yarn electron-start\" -n \"REACT,ELECTRON\" -c \"blue,green\"",
     "build:react": "react-scripts build",
     "build:electron": "electron-builder build -c.extraMetadata.main=build/Main.js",
     "build:exe": "yarn build:react && electron-builder build --win --x64 -c.extraMetadata.main=build/Main.js",
@@ -78,7 +78,7 @@
     "appId": "com.scard.pcsc-client",
     "productName": "CARD Tools",
     "directories": {
-      "buildResources": "public",
+      "buildResources": "assets",
       "output": "dist"
     },
     "extraResources": [
@@ -102,26 +102,13 @@
     "win": {
       "target": [
         {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        },
-        {
           "target": "portable",
           "arch": [
             "x64"
           ]
         }
       ],
-      "icon": "public/icon.ico"
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "shortcutName": "CARD Tools"
+      "icon": "assets/icon.ico"
     }
   },
   "devDependencies": {

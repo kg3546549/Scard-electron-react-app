@@ -30,6 +30,8 @@ import {
     Divider,
     SimpleGrid,
     IconButton,
+    Flex,
+    Badge,
 } from '@chakra-ui/react';
 import { FaTrash, FaSave, FaPlus, FaUndo } from 'react-icons/fa';
 import {
@@ -55,6 +57,10 @@ const HEX_RULE = 'HEX 대문자, 짝수 길이';
 
 const normalizeHex = (val: string) => val.replace(/[^0-9A-F]/gi, '').toUpperCase();
 const isValidHexEven = (val: string) => val === '' || (val.length % 2 === 0 && /^[0-9A-F]*$/i.test(val));
+
+const formatNodeType = (type: string) => {
+    return type?.replace(/_/g, ' ') || 'UNKNOWN';
+};
 
 export const NodeEditor: React.FC<NodeEditorProps> = ({ node, onUpdate, onDelete, onClose: _onClose, allNodes = [] }) => {
     const [label, setLabel] = useState('');
@@ -958,6 +964,12 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({ node, onUpdate, onDelete
                     <Text color="gray.500">Select a node to edit</Text>
                 ) : (
                     <VStack align="stretch" spacing={4}>
+                        <Flex justify="center">
+                            <Badge colorScheme="purple" fontSize="0.8em" px={2} py={1} borderRadius="md">
+                                {formatNodeType(effectiveType)}
+                            </Badge>
+                        </Flex>
+                        
                         <FormControl>
                             <FormLabel fontSize="sm">Label</FormLabel>
                             <Input
@@ -970,15 +982,15 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({ node, onUpdate, onDelete
 
                         <Tabs size="sm" variant="enclosed">
                             <TabList>
-                                <Tab>APDU</Tab>
-                                <Tab>Crypto</Tab>
+                                {!isCryptoNode && <Tab>APDU</Tab>}
+                                {isCryptoNode && <Tab>Crypto</Tab>}
                                 <Tab>Pipe</Tab>
                                 <Tab>Variables</Tab>
                                 <Tab>Meta</Tab>
                             </TabList>
                             <TabPanels>
-                                <TabPanel>{renderAPDUPanel()}</TabPanel>
-                                <TabPanel>{renderCryptoPanel()}</TabPanel>
+                                {!isCryptoNode && <TabPanel>{renderAPDUPanel()}</TabPanel>}
+                                {isCryptoNode && <TabPanel>{renderCryptoPanel()}</TabPanel>}
                                 <TabPanel>{renderPipePanel()}</TabPanel>
                                 <TabPanel>{renderVariablePanel()}</TabPanel>
                                 <TabPanel>{renderMetaPanel()}</TabPanel>
