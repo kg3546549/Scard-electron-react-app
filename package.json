@@ -45,7 +45,7 @@
     "eject": "react-scripts eject",
     "react-start": "cross-env BROWSER=none react-scripts start",
     "electron-start": "cross-env ELECTRON_START_URL=http://localhost:3000 electron .",
-    "   ": "concurrently \"yarn react-start\" \"wait-on http://localhost:3000 && yarn electron-start\" -n \"REACT,ELECTRON\" -c \"blue,green\"",
+    "dev": "concurrently \"yarn react-start\" \"wait-on http://localhost:3000 && yarn electron-start\" -n \"REACT,ELECTRON\" -c \"blue,green\"",
     "build:react": "react-scripts build",
     "build:electron": "electron-builder build -c.extraMetadata.main=build/Main.js",
     "build:exe": "yarn build:react && electron-builder build --win --x64 -c.extraMetadata.main=build/Main.js",

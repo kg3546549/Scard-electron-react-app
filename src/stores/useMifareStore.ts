@@ -11,6 +11,7 @@ import {
     MifareKeyConfig,
     MifareKeyType,
     CardReadingStatus,
+    CardType,
 } from '../types';
 
 interface MifareStore {
@@ -29,6 +30,11 @@ interface MifareStore {
     detectCard: () => Promise<void>;
     readSectors: (sectorNumbers: number[]) => Promise<void>;
     readAllSectors: () => Promise<void>;
+    writeBlock: (sectorNumber: number, blockIndex: number, data: string) => Promise<void>;
+    connectCard: () => Promise<void>;
+    readUID: () => Promise<void>;
+    authenticateSectorOnly: (sectorNumber: number) => Promise<void>;
+    readSectorOnly: (sectorNumber: number) => Promise<void>;
     selectSector: (index: number) => void;
     selectAllSectors: () => void;
     deselectAllSectors: () => void;
@@ -116,6 +122,105 @@ export const useMifareStore = create<MifareStore>((set, get) => ({
             .filter(index => index !== -1);
 
         await get().readSectors(sectorNumbers);
+    },
+
+    writeBlock: async (sectorNumber: number, blockIndex: number, data: string) => {
+        const { service, keyConfig } = get();
+        set({ status: CardReadingStatus.WRITING, error: null });
+
+        try {
+            await service.writeBlock(sectorNumber, blockIndex, data, keyConfig);
+            // Update local state
+            const card = service.getCard();
+            set({
+                sectorData: card.sectorData.map((sector) => ({
+                    ...sector,
+                    blocks: [...sector.blocks],
+                })),
+                status: CardReadingStatus.SUCCESS,
+            });
+        } catch (error) {
+            set({
+                status: CardReadingStatus.ERROR,
+                error: (error as Error).message,
+            });
+            throw error;
+        }
+    },
+
+    connectCard: async () => {
+        const { service } = get();
+        set({ status: CardReadingStatus.CONNECTING, error: null });
+        try {
+            await service.connect();
+            set({ status: CardReadingStatus.SUCCESS });
+        } catch (error) {
+            set({ status: CardReadingStatus.ERROR, error: (error as Error).message });
+            throw error;
+        }
+    },
+
+    readUID: async () => {
+        const { service } = get();
+        set({ status: CardReadingStatus.GETTING_UID, error: null });
+        try {
+            const uid = await service.readUID();
+            // cardInfo might need update if it exists
+            const currentCardInfo = get().cardInfo;
+            if (currentCardInfo) {
+                set({ cardInfo: { ...currentCardInfo, uid } });
+            } else {
+                 // Minimal card info if not detected yet
+                 set({ cardInfo: { 
+                     type: CardType.UNKNOWN, 
+                     atr: '', 
+                     uid, 
+                 } as CardInfo });
+            }
+            set({ status: CardReadingStatus.SUCCESS });
+        } catch (error) {
+            set({ status: CardReadingStatus.ERROR, error: (error as Error).message });
+            throw error;
+        }
+    },
+
+    authenticateSectorOnly: async (sectorNumber: number) => {
+        const { service, keyConfig } = get();
+        set({ status: CardReadingStatus.AUTHENTICATING, error: null });
+        try {
+            await service.authenticateSector(sectorNumber, keyConfig);
+            // Update sector auth status
+            const card = service.getCard();
+            set({
+                sectorData: card.sectorData.map((sector) => ({
+                    ...sector,
+                    blocks: [...sector.blocks],
+                })),
+                status: CardReadingStatus.SUCCESS,
+            });
+        } catch (error) {
+            set({ status: CardReadingStatus.ERROR, error: (error as Error).message });
+            throw error;
+        }
+    },
+
+    readSectorOnly: async (sectorNumber: number) => {
+        const { service } = get();
+        set({ status: CardReadingStatus.READING, error: null });
+        try {
+            await service.readSectorBlocks(sectorNumber);
+            const card = service.getCard();
+            set({
+                sectorData: card.sectorData.map((sector) => ({
+                    ...sector,
+                    blocks: [...sector.blocks],
+                })),
+                status: CardReadingStatus.SUCCESS,
+            });
+        } catch (error) {
+            set({ status: CardReadingStatus.ERROR, error: (error as Error).message });
+            throw error;
+        }
     },
 
     selectSector: (index: number) => {

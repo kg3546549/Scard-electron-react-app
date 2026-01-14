@@ -56,8 +56,12 @@ export interface MifareKeyConfig {
  */
 export enum CardReadingStatus {
     IDLE = 'IDLE',
+    CONNECTING = 'CONNECTING',
+    GETTING_UID = 'GETTING_UID',
     DETECTING = 'DETECTING',
     READING = 'READING',
+    WRITING = 'WRITING',
+    AUTHENTICATING = 'AUTHENTICATING',
     SUCCESS = 'SUCCESS',
     ERROR = 'ERROR',
 }

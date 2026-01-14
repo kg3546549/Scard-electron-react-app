@@ -50,11 +50,11 @@ const navItems: NavItem[] = [
         icon: FaSimCard,
         path: '/driver-test',
     },
-    {
-        name: 'Settings',
-        icon: FiSettings,
-        path: '/settings',
-    },
+    // {
+    //     name: 'Settings',
+    //     icon: FiSettings,
+    //     path: '/settings',
+    // },
 ];
 
 interface NavItemProps {

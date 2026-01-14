@@ -19,22 +19,17 @@ export class MifareService {
      */
     async detectCard(): Promise<CardInfo> {
         try {
-            // PCSC 연결 확인 및 컨텍스트/리더/카드 연결
-            if (!pcscService.isConnected()) {
-                await pcscService.connect();
-            }
-            await pcscService.establishContext();
-            await pcscService.getReaderList();
-            await pcscService.connectCard();
+            await this.connect();
 
             // ATR 조회
             const atr = await pcscService.getATR();
 
             // UID 조회 (APDU 기반)
-            const uid = await pcscService.getMifareUID();
-
+            const uid = await this.readUID();
+            
             let sak: string | undefined;
             let ats: string | undefined;
+            
             try {
                 const sakResp = await pcscService.getMifareSAK();
                 const sakSw = this.extractStatusWord(sakResp);
@@ -95,6 +90,33 @@ export class MifareService {
     }
 
     /**
+     * 리더 및 카드 연결 (Select 단계 대응)
+     */
+    async connect(): Promise<void> {
+        // PCSC 연결 확인 및 컨텍스트/리더/카드 연결
+        if (!pcscService.isConnected()) {
+            await pcscService.connect();
+        }
+        await pcscService.establishContext();
+        await pcscService.getReaderList();
+        await pcscService.connectCard();
+    }
+
+    /**
+     * UID 읽기 (Anticollision 단계 대응)
+     */
+    async readUID(): Promise<string> {
+        const uid = await pcscService.getMifareUID();
+        // cardInfo가 있으면 업데이트
+        const currentInfo = this.card.info;
+        if (currentInfo) {
+            this.card.initialize({ ...currentInfo, uid });
+        }
+        return uid;
+    }
+
+
+    /**
      * 섹터 읽기
      */
     async readSectors(
@@ -108,35 +130,13 @@ export class MifareService {
             await this.delay(1);
 
             for (const sectorNumber of sectorNumbers) {
-                const blockNumber = sectorNumber * 4;
-
                 try {
                     // 인증
-                    const authResp = await pcscService.authenticateMifare(String(blockNumber), keyConfig.keyType);
-                    await this.delay(1);
-                    const authSw = this.extractStatusWord(authResp);
-                    if (authSw && authSw !== '9000') {
-                        throw new Error(`AUTH failed (SW=${authSw})`);
-                    }
-
-                    // 섹터 인증 상태 업데이트
-                    this.card.setSectorAuthenticated(sectorNumber, true);
+                    await this.authenticateSector(sectorNumber, keyConfig, false); // 키 로드 이미 함
 
                     // 4개 블록 읽기
-                    const blocks: string[] = [];
-                    for (let i = 0; i < 4; i++) {
-                        const raw = await pcscService.readMifareBlock(String(blockNumber + i));
-                        await this.delay(1);
-                        const sw = this.extractStatusWord(raw);
-                        if (sw && sw !== '9000') {
-                            throw new Error(`READ failed at block ${blockNumber + i} (SW=${sw})`);
-                        }
-                        const trimmed = this.stripStatusWord(raw).substring(0, 32);
-                        blocks.push(trimmed);
-                    }
+                    await this.readSectorBlocks(sectorNumber);
 
-                    // 섹터 데이터 업데이트
-                    this.card.setSectorData(sectorNumber, blocks);
                 } catch (err) {
                     const reason = (err as Error).message || 'Unknown error';
                     this.card.setSectorError(sectorNumber, reason);
@@ -151,6 +151,66 @@ export class MifareService {
             }
         } catch (error) {
             console.error('Failed to read sectors:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * 특정 섹터 인증 (단일 단계용)
+     * @param loadKey 키 로드 수행 여부 (반복 작업시 최적화 위해)
+     */
+    async authenticateSector(
+        sectorNumber: number, 
+        keyConfig: MifareKeyConfig, 
+        loadKey: boolean = true
+    ): Promise<void> {
+        try {
+            if (loadKey) {
+                await pcscService.loadMifareKey(keyConfig.keyValue);
+                await this.delay(1);
+            }
+
+            const blockNumber = sectorNumber * 4;
+            const authResp = await pcscService.authenticateMifare(String(blockNumber), keyConfig.keyType);
+            await this.delay(1);
+            const authSw = this.extractStatusWord(authResp);
+            if (authSw && authSw !== '9000') {
+                throw new Error(`AUTH failed (SW=${authSw})`);
+            }
+
+            // 섹터 인증 상태 업데이트
+            this.card.setSectorAuthenticated(sectorNumber, true);
+        } catch (error) {
+            this.card.setSectorError(sectorNumber, (error as Error).message);
+            throw error;
+        }
+    }
+
+    /**
+     * 특정 섹터 블록들 읽기 (단일 단계용)
+     * 인증이 선행되어야 함
+     */
+    async readSectorBlocks(sectorNumber: number): Promise<string[]> {
+        const blockNumber = sectorNumber * 4;
+        const blocks: string[] = [];
+        
+        try {
+            for (let i = 0; i < 4; i++) {
+                const raw = await pcscService.readMifareBlock(String(blockNumber + i));
+                await this.delay(1);
+                const sw = this.extractStatusWord(raw);
+                if (sw && sw !== '9000') {
+                    throw new Error(`READ failed at block ${blockNumber + i} (SW=${sw})`);
+                }
+                const trimmed = this.stripStatusWord(raw).substring(0, 32);
+                blocks.push(trimmed);
+            }
+
+            // 섹터 데이터 업데이트
+            this.card.setSectorData(sectorNumber, blocks);
+            return blocks;
+        } catch (error) {
+            this.card.setSectorError(sectorNumber, (error as Error).message);
             throw error;
         }
     }

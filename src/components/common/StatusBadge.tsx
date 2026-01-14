@@ -28,7 +28,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
 
     return (
         <Badge colorScheme={getColorScheme()} fontSize="sm">
-            {status}
+            {" "+status+" "}
         </Badge>
     );
 };
