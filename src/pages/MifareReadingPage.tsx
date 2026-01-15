@@ -198,7 +198,7 @@ export const MifareReadingPage: React.FC = () => {
         <Flex direction="column" h="full" overflow="hidden" gap={4}>
             <Flex justify="space-between" flexShrink={0}>
                 <Heading size="lg">Mifare Card Reading</Heading>
-                <StatusBadge status={status} />
+                {/* <StatusBadge status={status} /> */}
             </Flex>
 
             {/* Top Row: Card Status & Scan Controls */}

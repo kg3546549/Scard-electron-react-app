@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { Flex, Text, HStack, Box, IconButton, useColorModeValue } from '@chakra-ui/react';
+import { Flex, Text, HStack, Box, IconButton } from '@chakra-ui/react';
 import { FiMinus, FiX } from 'react-icons/fi';
 import { useLocation } from 'react-router-dom';
 
@@ -46,12 +46,8 @@ export const Header: React.FC = () => {
       // CRITICAL: Makes the div act as a window handle
       style={{ WebkitAppRegion: 'drag' } as any}
     >
-      {/* 1. Left: Brand Identity */}
-      <HStack spacing={4}>
-        <Text fontSize="lg" fontWeight="black" color="brand.500" userSelect="none">
-          S1 Tools
-        </Text>
-      </HStack>
+      {/* 1. Left: Placeholder or Breadcrumb (Optional) */}
+      <Box w="10px" /> 
 
       {/* 2. Center: Application Title */}
       <Box

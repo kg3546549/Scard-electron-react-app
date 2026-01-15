@@ -86,7 +86,7 @@ export const ISO7816TransmitPage: React.FC = () => {
         <Box>
             <Flex justify="space-between" mb={5}>
                 <Heading size="lg">ISO7816 APDU Transmit</Heading>
-                <StatusBadge status={status} />
+                {/* <StatusBadge status={status} /> */}
             </Flex>
 
             <Grid templateColumns="repeat(10, 1fr)" gap={4}>

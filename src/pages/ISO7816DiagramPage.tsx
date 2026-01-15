@@ -105,6 +105,7 @@ const DiagramPageContent: React.FC = () => {
         removeNode,
         removeEdge,
         resetExecution,
+        resetNodesStatus,
     } = useDiagramStore();
 
     const [nodes, setNodes,] = useNodesState([]);
@@ -404,6 +405,28 @@ const DiagramPageContent: React.FC = () => {
         handleClear();
     };
 
+    const handleReset = () => {
+        resetNodesStatus();
+        setNodes((nds) =>
+            nds.map((node) => ({
+                ...node,
+                data: {
+                    ...node.data,
+                    executed: false,
+                    error: undefined,
+                    response: undefined,
+                    processedData: undefined,
+                    cryptoMeta: undefined,
+                },
+            }))
+        );
+        toast({
+            title: 'Execution Status Reset',
+            status: 'info',
+            duration: 2000,
+        });
+    };
+
     return (
         <Box h="calc(100vh - 80px)" display="flex" flexDirection="column">
             <DiagramToolbar
@@ -414,7 +437,7 @@ const DiagramPageContent: React.FC = () => {
                 onLoad={handleLoad}
                 onClear={handleClear}
                 onNew={handleNew}
-                onReset={resetExecution}
+                onReset={handleReset}
                 isExecuting={executionStatus === 'RUNNING'}
                 isPaused={executionStatus === 'PAUSED'}
             />

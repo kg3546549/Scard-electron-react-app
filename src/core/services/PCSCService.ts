@@ -347,15 +347,16 @@ export class PCSCService {
     /**
      * Mifare 블록 쓰기
      */
-    async writeMifareBlock(blockNumber: string, data: string): Promise<void> {
+    async writeMifareBlock(blockNumber: string, data: string): Promise<string> {
         const blockHex = this.toHexByte(blockNumber);
         const dataHex = data.toUpperCase();
         if (dataHex.length !== 32) {
             throw new Error('Mifare write data must be 16 bytes (32 hex chars)');
         }
-        // FF A0 00 <block> 10 <data>
-        const apdu = `FFA000${blockHex}10${dataHex}`;
-        await this.sendCommand(Command.Cmd_SCard_Transmit, [apdu]);
+        // FF D6 00 <block> 10 <data> - Update Binary
+        const apdu = `FFD600${blockHex}10${dataHex}`;
+        const response = await this.sendCommand(Command.Cmd_SCard_Transmit, [apdu]);
+        return response.data[0] || '';
     }
 
     /**

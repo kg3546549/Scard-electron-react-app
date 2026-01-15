@@ -40,6 +40,7 @@ interface DiagramStore {
     stopExecution: () => void;
     clearDiagram: () => void;
     resetExecution: () => void;
+    resetNodesStatus: () => void;
     reset: () => void;
 }
 
@@ -167,17 +168,25 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
     },
 
     executeDiagram: async (options: DiagramExecutionOptions) => {
-        const { service } = get();
+        const { service, executionStatus } = get();
+
+        // If paused, just resume
+        if (executionStatus === DiagramExecutionStatus.PAUSED) {
+            service.resumeExecution();
+            set({ executionStatus: DiagramExecutionStatus.RUNNING });
+            return;
+        }
+
         set({ executionStatus: DiagramExecutionStatus.RUNNING, executionResults: [], error: null });
 
         try {
             const results = await service.executeDiagram(options, (liveResults) => {
                 set({ executionResults: liveResults, executionStatus: DiagramExecutionStatus.RUNNING });
             });
-            const executionStatus = service.getExecutionStatus();
+            const finalStatus = service.getExecutionStatus();
             set({
                 executionResults: results,
-                executionStatus,
+                executionStatus: finalStatus,
             });
         } catch (error) {
             set({
@@ -194,10 +203,14 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
     },
 
     pauseExecution: () => {
+        const { service } = get();
+        service.pauseExecution();
         set({ executionStatus: DiagramExecutionStatus.PAUSED });
     },
 
     stopExecution: () => {
+        const { service } = get();
+        service.stopExecution();
         set({ executionStatus: DiagramExecutionStatus.IDLE });
     },
 
@@ -215,6 +228,18 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
 
     resetExecution: () => {
         set({
+            executionStatus: DiagramExecutionStatus.IDLE,
+            executionResults: [],
+            error: null,
+        });
+    },
+
+    resetNodesStatus: () => {
+        const { service } = get();
+        service.resetNodesStatus();
+        const currentDiagram = service.getCurrentDiagram();
+        set({
+            currentDiagram: currentDiagram ? { ...currentDiagram } : null,
             executionStatus: DiagramExecutionStatus.IDLE,
             executionResults: [],
             error: null,

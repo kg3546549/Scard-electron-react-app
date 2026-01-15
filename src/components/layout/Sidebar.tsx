@@ -1,29 +1,26 @@
-/**
- * Sidebar Component
- * 사이드바 - 네비게이션 메뉴 + 드라이버 연결 상태
- */
-
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
     Box,
     Flex,
     Text,
     Icon,
     Badge,
-    Spacer,
     VStack,
-    useColorModeValue,
+    IconButton,
+    Tooltip,
 } from '@chakra-ui/react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { IconType } from 'react-icons';
 import { IoIdCardOutline } from 'react-icons/io5';
 import { FaSimCard } from 'react-icons/fa';
-import { FiSettings } from 'react-icons/fi';
 import { MdDashboard } from 'react-icons/md';
+import { FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import { useSidebarStore } from '../../stores/useSidebarStore';
 import { useDriverStore } from '../../stores';
 import { DriverConnectionStatus } from '../../types';
 
 interface NavItem {
+    id: string;
     name: string;
     icon: IconType;
     path: string;
@@ -31,80 +28,58 @@ interface NavItem {
 
 const navItems: NavItem[] = [
     {
+        id: 'mifare',
         name: 'Mifare Reading',
         icon: IoIdCardOutline,
         path: '/mifare',
     },
     {
+        id: 'iso7816',
         name: 'ISO7816 APDU',
         icon: FaSimCard,
         path: '/iso7816',
     },
     {
+        id: 'diagram',
         name: 'APDU Diagram',
         icon: MdDashboard,
         path: '/diagram',
     },
     {
+        id: 'driver-test',
         name: 'Driver Test',
         icon: FaSimCard,
         path: '/driver-test',
     },
-    // {
-    //     name: 'Settings',
-    //     icon: FiSettings,
-    //     path: '/settings',
-    // },
 ];
-
-interface NavItemProps {
-    item: NavItem;
-    isActive: boolean;
-    onClick: () => void;
-}
-
-const NavItemComponent: React.FC<NavItemProps> = ({ item, isActive, onClick }) => {
-    const bgColor = useColorModeValue(
-        isActive ? 'cyan.400' : 'transparent',
-        isActive ? 'cyan.600' : 'transparent'
-    );
-    const textColor = useColorModeValue(
-        isActive ? 'white' : 'gray.700',
-        isActive ? 'white' : 'gray.200'
-    );
-    const hoverBg = useColorModeValue('cyan.400', 'cyan.600');
-
-    return (
-        <Flex
-            align="center"
-            p={4}
-            mx={4}
-            borderRadius="lg"
-            cursor="pointer"
-            bg={bgColor}
-            color={textColor}
-            _hover={{
-                bg: hoverBg,
-                color: 'white',
-            }}
-            onClick={onClick}
-            transition="all 0.2s"
-        >
-            <Icon as={item.icon} mr={4} fontSize="16" />
-            <Text fontWeight="medium">{item.name}</Text>
-        </Flex>
-    );
-};
 
 export const Sidebar: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
+    const { isCollapsed, toggleSidebar, setActivePage } = useSidebarStore();
     const { connectionStatus } = useDriverStore();
 
-    const bgColor = useColorModeValue('white', 'gray.900');
-    const borderColor = useColorModeValue('gray.200', 'gray.700');
+    // Sync active page with location
+    useEffect(() => {
+        const currentPath = location.pathname;
+        const currentItem = navItems.find(item => currentPath.startsWith(item.path));
+        if (currentItem) {
+            setActivePage(currentItem.id);
+        }
+    }, [location, setActivePage]);
 
     const getConnectionBadge = () => {
+        if (isCollapsed) {
+             let color = 'gray.500';
+             switch (connectionStatus) {
+                case DriverConnectionStatus.CONTEXT_READY: color = 'green.500'; break;
+                case DriverConnectionStatus.RUNNING: color = 'blue.500'; break;
+                case DriverConnectionStatus.STARTING: color = 'yellow.500'; break;
+                case DriverConnectionStatus.ERROR: color = 'red.500'; break;
+             }
+             return <Box w="10px" h="10px" borderRadius="full" bg={color} />;
+        }
+
         switch (connectionStatus) {
             case DriverConnectionStatus.CONTEXT_READY:
                 return <Badge colorScheme="green">Context Ready</Badge>;
@@ -122,45 +97,97 @@ export const Sidebar: React.FC = () => {
 
     return (
         <Box
-            bg={bgColor}
-            borderRight="1px"
-            borderRightColor={borderColor}
-            w={{ base: 'full', md: 60 }}
-            pos="fixed"
-            top="64px" // Account for Header height
-            h="calc(100vh - 64px)" // Full height minus Header
-            display={{ base: 'none', md: 'block' }}
+            as="nav"
+            w={isCollapsed ? '70px' : '240px'}
+            h="100vh" // Full height
+            bg="white"
+            borderRight="1px solid"
+            borderColor="ui.border"
+            transition="width 0.2s ease-in-out"
+            zIndex={100}
+            display="flex"
+            flexDirection="column"
         >
-            {/* Navigation Items */}
-            <Flex direction="column" h="full" pt={4}>
-                <VStack spacing={1} align="stretch">
-                    {navItems.map((item) => (
-                        <NavItemComponent
-                            key={item.path}
-                            item={item}
-                            isActive={location.pathname === item.path}
-                            onClick={() => navigate(item.path)}
-                        />
-                    ))}
-                </VStack>
-
-                <Spacer />
-
-                {/* Driver Status */}
-                <Flex
-                    p={3}
-                    justify="center"
-                    borderTop="1px"
-                    borderColor={borderColor}
-                    direction="column"
-                    align="center"
-                >
-                    <Text fontWeight="bold" mb={2} fontSize="sm" color="gray.500">
-                        Reader Status
-                    </Text>
-                    {getConnectionBadge()}
-                </Flex>
+            {/* Branding Area */}
+            <Flex
+                h="64px"
+                align="center"
+                justify={isCollapsed ? 'center' : 'flex-start'}
+                px={isCollapsed ? 0 : 6}
+                borderBottom="1px solid"
+                borderColor="ui.border"
+            >
+                <Text fontSize="xl" fontWeight="bold" color="brand.500" whiteSpace="nowrap">
+                    {isCollapsed ? 'Card' : 'Card Tool'}
+                </Text>
             </Flex>
+
+            {/* Menu Items */}
+            <VStack spacing={1} align="stretch" p={2} flex={1}>
+                {navItems.map((module) => {
+                    const isActive = location.pathname.startsWith(module.path);
+                    return (
+                        <Tooltip
+                            key={module.id}
+                            label={isCollapsed ? module.name : ''}
+                            placement="right"
+                            hasArrow
+                            isDisabled={!isCollapsed}
+                        >
+                            <Flex
+                                align="center"
+                                p={3}
+                                cursor="pointer"
+                                borderRadius="md"
+                                bg={isActive ? 'brand.50' : 'transparent'}
+                                color={isActive ? 'brand.600' : 'gray.600'}
+                                fontWeight={isActive ? 'bold' : 'normal'}
+                                _hover={{ bg: 'brand.50', color: 'brand.600' }}
+                                onClick={() => navigate(module.path)}
+                                justify={isCollapsed ? 'center' : 'flex-start'}
+                            >
+                                <Icon as={module.icon} boxSize={5} />
+                                {!isCollapsed && (
+                                    <Text ml={3} fontSize="sm" whiteSpace="nowrap">
+                                        {module.name}
+                                    </Text>
+                                )}
+                            </Flex>
+                        </Tooltip>
+                    );
+                })}
+            </VStack>
+            
+            {/* Driver Status - Adapted for Sidebar */}
+             <Box p={2} borderTop="1px solid" borderColor="ui.border">
+                <Flex 
+                    direction={isCollapsed ? 'column' : 'row'} 
+                    align="center" 
+                    justify="center" 
+                    mb={isCollapsed ? 2 : 0}
+                >
+                     {!isCollapsed && (
+                         <Text fontSize="xs" color="gray.500" mr={2} fontWeight="bold">
+                             Reader:
+                         </Text>
+                     )}
+                     {getConnectionBadge()}
+                </Flex>
+            </Box>
+
+
+            {/* Footer / Toggle */}
+            <Box p={2} borderTop="1px solid" borderColor="ui.border">
+                <Flex justify={isCollapsed ? 'center' : 'flex-end'}>
+                    <IconButton
+                        aria-label="Toggle Sidebar"
+                        icon={isCollapsed ? <FiChevronRight /> : <FiChevronLeft />}
+                        size="sm"
+                        variant="ghost"
+                        onClick={toggleSidebar}
+                    />
+                </Flex>
+            </Box>
         </Box>
     );
 };

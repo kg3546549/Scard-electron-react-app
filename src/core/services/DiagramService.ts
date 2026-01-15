@@ -178,6 +178,51 @@ export class DiagramService {
     }
 
     /**
+     * 노드 실행 상태 초기화
+     */
+    resetNodesStatus(): void {
+        if (!this.currentDiagram) return;
+
+        this.currentDiagram.nodes.forEach(node => {
+            if (node.data) {
+                node.data.executed = false;
+                node.data.error = undefined;
+                node.data.response = undefined;
+                node.data.processedData = undefined;
+                if ((node.data as any).cryptoMeta) {
+                    (node.data as any).cryptoMeta = undefined;
+                }
+            }
+        });
+        this.currentDiagram.updatedAt = new Date();
+    }
+
+    /**
+     * 실행 중지
+     */
+    stopExecution(): void {
+        this.executionStatus = DiagramExecutionStatus.IDLE;
+    }
+
+    /**
+     * 실행 일시정지
+     */
+    pauseExecution(): void {
+        if (this.executionStatus === DiagramExecutionStatus.RUNNING) {
+            this.executionStatus = DiagramExecutionStatus.PAUSED;
+        }
+    }
+
+    /**
+     * 실행 재개
+     */
+    resumeExecution(): void {
+        if (this.executionStatus === DiagramExecutionStatus.PAUSED) {
+            this.executionStatus = DiagramExecutionStatus.RUNNING;
+        }
+    }
+
+    /**
      * 다이어그램 실행
      */
     async executeDiagram(
@@ -186,6 +231,11 @@ export class DiagramService {
     ): Promise<NodeExecutionResult[]> {
         if (!this.currentDiagram) {
             throw new Error('No active diagram');
+        }
+
+        // 이미 실행 중이면 재시작하지 않음 (재개 로직은 별도)
+        if (this.executionStatus === DiagramExecutionStatus.RUNNING) {
+             // throw new Error('Already running');
         }
 
         this.executionStatus = DiagramExecutionStatus.RUNNING;
@@ -206,6 +256,28 @@ export class DiagramService {
             const executionOrder = this.getExecutionOrder();
 
             for (const nodeId of executionOrder) {
+                // 1. 중지 체크
+                if ((this.executionStatus as DiagramExecutionStatus) === DiagramExecutionStatus.IDLE || 
+                    (this.executionStatus as DiagramExecutionStatus) === DiagramExecutionStatus.ERROR) {
+                    break;
+                }
+
+                // 2. 일시정지 체크 (Polling)
+                while ((this.executionStatus as DiagramExecutionStatus) === DiagramExecutionStatus.PAUSED) {
+                    await this.delay(100);
+                    // 일시정지 중 중지되면 루프 탈출
+                    if ((this.executionStatus as DiagramExecutionStatus) === DiagramExecutionStatus.IDLE || 
+                        (this.executionStatus as DiagramExecutionStatus) === DiagramExecutionStatus.ERROR) {
+                        break;
+                    }
+                }
+                
+                // 일시정지 루프 탈출 후 다시 중지 체크
+                if ((this.executionStatus as DiagramExecutionStatus) === DiagramExecutionStatus.IDLE || 
+                    (this.executionStatus as DiagramExecutionStatus) === DiagramExecutionStatus.ERROR) {
+                    break;
+                }
+
                 const node = this.currentDiagram.nodes.find(n => n.id === nodeId);
                 if (!node) continue;
 

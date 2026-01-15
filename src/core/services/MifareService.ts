@@ -263,14 +263,26 @@ export class MifareService {
         try {
             // 키 로드
             await pcscService.loadMifareKey(keyConfig.keyValue);
+            await this.delay(1);
 
             // 인증
             const blockNumber = sectorNumber * 4;
-            await pcscService.authenticateMifare(String(blockNumber), keyConfig.keyType);
+            const authResp = await pcscService.authenticateMifare(String(blockNumber), keyConfig.keyType);
+            await this.delay(1);
+            const authSw = this.extractStatusWord(authResp);
+            if (authSw && authSw !== '9000') {
+                throw new Error(`AUTH failed (SW=${authSw})`);
+            }
 
             // 블록 쓰기
             const absoluteBlockNumber = sectorNumber * 4 + blockIndex;
-            await pcscService.writeMifareBlock(String(absoluteBlockNumber), data);
+            const writeResp = await pcscService.writeMifareBlock(String(absoluteBlockNumber), data);
+            await this.delay(5); // 쓰기 후 안정화 대기
+            
+            const writeSw = this.extractStatusWord(writeResp);
+            if (writeSw && writeSw !== '9000') {
+                throw new Error(`WRITE failed (SW=${writeSw})`);
+            }
 
             // 카드 모델 업데이트
             this.card.setBlockData(sectorNumber, blockIndex, data);
