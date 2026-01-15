@@ -17,9 +17,6 @@ I'm excited to announce the first official release of the Card Tools. This appli
 ![Diagram 1](<readme/imgs/APDU Diagram 1.gif>)
 ![Diagram 2](<readme/imgs/APDU Diagram 2.gif>)
 
-## Software Architecture
-![Architecture](Software_Diagram.jpg)
-
 ## 🎨 Design & UX
 **Unified Layout**: Clean and professional UI styled according to the Tools design system.
 
