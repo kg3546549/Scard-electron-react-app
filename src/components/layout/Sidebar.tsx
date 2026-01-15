@@ -118,7 +118,7 @@ export const Sidebar: React.FC = () => {
                 borderColor="ui.border"
             >
                 <Text fontSize="xl" fontWeight="bold" color="brand.500" whiteSpace="nowrap">
-                    {isCollapsed ? 'Card' : 'Card Tool'}
+                    {isCollapsed ? 'CARD' : 'CARD Tools'}
                 </Text>
             </Flex>
 

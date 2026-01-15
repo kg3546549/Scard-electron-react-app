@@ -1,6 +1,10 @@
 {
   "name": "winscard-pcsc-client",
   "version": "1.0.0",
+  "description": "Smart Card Analysis & APDU Diagram Tool",
+  "author": {
+    "name": "KG"
+  },
   "private": true,
   "dependencies": {
     "@chakra-ui/icons": "^2.2.4",
@@ -75,8 +79,9 @@
   "main": "public/Main.js",
   "homepage": "./",
   "build": {
-    "appId": "com.scard.pcsc-client",
+    "appId": "com.kg.cardtools",
     "productName": "CARD Tools",
+    "copyright": "Copyright © 2026 KG",
     "directories": {
       "buildResources": "assets",
       "output": "dist"
@@ -102,6 +107,12 @@
     "win": {
       "target": [
         {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
           "target": "portable",
           "arch": [
             "x64"
@@ -109,6 +120,14 @@
         }
       ],
       "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "CARD Tools",
+      "uninstallDisplayName": "CARD Tools"
     }
   },
   "devDependencies": {
